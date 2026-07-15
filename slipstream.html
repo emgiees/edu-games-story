@@ -1,0 +1,2341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SLIPSTREAM — a market in fifteen quarters</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..900&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================ TOKENS */
+:root{
+  --bg:#ECEEF1; --surface:#FFFFFF; --ink:#182430; --mut:#5C6B7A; --line:#D4DAE1;
+  --accent:#2853F0; --accent-soft:#E4EAFE; --warn:#E0491F; --warn-soft:#FCEAE3;
+  --ok:#1B9E6B; --ok-soft:#E2F4EC;
+  --disp:'Archivo',sans-serif; --body:'IBM Plex Sans',sans-serif; --mono:'IBM Plex Mono',monospace;
+  --r:10px; --shadow:0 1px 2px rgba(24,36,48,.06),0 4px 14px rgba(24,36,48,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
+  -webkit-font-smoothing:antialiased}
+#root{min-height:100vh}
+h1,h2,h3,h4{font-family:var(--disp);margin:0}
+button{font-family:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ============================================================ LAYOUT */
+.app{max-width:1240px;margin:0 auto;padding:0 16px 60px}
+.content{margin-top:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+@media(max-width:960px){.grid2,.grid3{grid-template-columns:1fr}}
+
+/* ============================================================ TOPBAR */
+.topbar{display:flex;align-items:center;gap:18px;padding:14px 0 10px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand b{font-family:var(--disp);font-weight:800;font-stretch:115%;letter-spacing:.02em;font-size:19px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand span{display:block;color:var(--mut);font-size:12px}
+.jersey{display:inline-block;width:14px;height:14px;border-radius:4px;flex:none}
+.jersey.big{width:30px;height:30px;border-radius:8px;box-shadow:inset 0 -8px 0 rgba(0,0,0,.14)}
+.jersey.big.console{background:repeating-linear-gradient(45deg,var(--ink),var(--ink) 6px,#fff 6px,#fff 12px)}
+.phase{margin-left:auto;text-align:right}
+.phase b{font-family:var(--disp);font-weight:900;font-stretch:125%;text-transform:uppercase;font-size:22px;letter-spacing:.03em;display:block}
+.phase span{color:var(--mut);font-size:12px}
+.topstats{display:flex;gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:7px 12px;min-width:96px;text-align:right}
+.stat-v{font-family:var(--mono);font-weight:600;font-size:16px}
+.stat-l{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.stat.warn .stat-v{color:var(--warn)}
+.stat.rating-A .stat-v,.stat.rating-B .stat-v{color:var(--ok)}
+.stat.rating-D .stat-v,.stat.rating-E .stat-v{color:var(--warn)}
+@media(max-width:760px){.topstats{width:100%;justify-content:space-between}.phase{margin-left:0}}
+
+/* =========================================================== PELOTON */
+.peloton{display:flex;gap:8px;overflow-x:auto;padding:10px 2px;border-top:2px solid var(--ink);border-bottom:1px solid var(--line);scrollbar-width:thin}
+.rider{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px 6px 8px;flex:none;font-size:13px}
+.rider .pos{font-family:var(--disp);font-weight:900;font-stretch:125%;width:20px;text-align:center;font-size:14px}
+.rider .rname{font-weight:600;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rider .gap{font-family:var(--mono);color:var(--mut);font-size:12px}
+.rider.me{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.rider.rcv{opacity:.68}
+.rider.rcv .gap{color:var(--warn)}
+
+/* ============================================================= CARDS */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:14px;overflow:auto}
+.card.tight{padding:10px 12px}
+.card-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.card-head h3{font-weight:800;font-stretch:112%;font-size:16px;text-transform:uppercase;letter-spacing:.04em}
+.banner{border-radius:var(--r);padding:10px 14px;margin:10px 0;font-weight:500}
+.banner.warn{background:var(--warn-soft);color:#8C2B0E;border:1px solid #F0BFA9}
+.banner.ok{background:var(--ok-soft);color:#0D5C3D;border:1px solid #B4E0CC}
+
+/* ============================================================== TABS */
+.tabs{display:flex;gap:4px;margin-top:12px;border-bottom:2px solid var(--ink);overflow-x:auto}
+.tab{background:none;border:none;padding:9px 14px;font-weight:600;font-size:14px;color:var(--mut);border-radius:8px 8px 0 0;white-space:nowrap}
+.tab.on{background:var(--ink);color:#fff}
+.tab:hover:not(.on){background:#DDE2E8}
+
+/* ============================================================ INPUTS */
+.txt,.sel,.num{font-family:var(--body);font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);width:100%}
+.num{font-family:var(--mono);text-align:right}
+.numwrap{display:inline-flex;align-items:center;gap:4px}
+.numwrap em{font-style:normal;color:var(--mut);font-size:12px}
+.sel{width:auto}
+.lbl{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink);flex-wrap:wrap}
+.lbl .mini{font-weight:400}
+.lbl.grow{flex:1;min-width:220px}
+.lbl.grow .txt{flex:1}
+.btn{border:1px solid var(--ink);background:var(--surface);color:var(--ink);border-radius:8px;padding:9px 16px;font-weight:600;font-size:14px}
+.btn:hover{background:#F2F4F7}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#1E42C8}
+.btn.big{font-size:16px;padding:12px 22px;font-family:var(--disp);font-weight:800;font-stretch:110%;text-transform:uppercase;letter-spacing:.03em}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn.tiny{padding:3px 8px;font-size:12px;border-radius:6px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.toggle{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--mut)}
+.toggle.on{background:var(--ink);border-color:var(--ink);color:#fff}
+
+/* ============================================================= TYPES */
+.mini{font-size:12px;color:var(--mut)}
+.mono{font-family:var(--mono)}
+.pos{color:var(--ok)} .neg{color:var(--warn)}
+.foot{display:block;margin-top:10px}
+.empty{color:var(--mut);padding:18px;text-align:center;border:1px dashed var(--line);border-radius:var(--r)}
+.hint{font-size:13px;color:var(--mut)} .hint.warn{color:var(--warn)} .hint.center{text-align:center}
+.grow{flex:1}
+
+/* ============================================================== WIRE */
+.wire{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow-y:auto}
+.wire-item{display:flex;gap:10px;padding:7px 10px;border-left:3px solid var(--line);background:#F7F8FA;border-radius:0 8px 8px 0;font-size:14px}
+.wire-q{font-family:var(--mono);color:var(--mut);flex:none;font-size:12px;padding-top:2px}
+.wire-item.t-event{border-left-color:var(--warn);background:var(--warn-soft)}
+.wire-item.t-poach{border-left-color:#8A3FD1}
+.wire-item.t-share{border-left-color:var(--ok)}
+.wire-item.t-price{border-left-color:var(--accent)}
+.wire-item.t-receiver{border-left-color:var(--warn)}
+.wire-item.t-trade{border-left-color:#0FA3A3}
+.wire.big .wire-item{font-size:17px;padding:10px 14px}
+
+/* ============================================================ TABLES */
+table.fin{width:100%;border-collapse:collapse;font-size:14px}
+table.fin td,table.fin th{padding:5px 6px;border-bottom:1px solid #EDF0F3;vertical-align:top}
+table.fin th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);text-align:left}
+table.fin th.r,table.fin td.r{text-align:right;font-family:var(--mono);font-size:13.5px}
+table.fin tr.strong td{font-weight:700;border-top:1px solid var(--line)}
+table.fin tr.total td{font-weight:700;border-top:2px solid var(--ink);border-bottom:none}
+table.fin.wide{min-width:760px}
+.rowlink{cursor:pointer}
+.rowlink:hover td{background:#F4F6FF}
+.notes{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
+
+/* ========================================================== SEGMENTS */
+.segblock{margin-bottom:14px}
+.segline{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px}
+.segline b{font-family:var(--disp);font-weight:800;font-stretch:112%;text-transform:uppercase;font-size:14px;letter-spacing:.04em}
+.sharebar{display:flex;height:18px;border-radius:5px;overflow:hidden;background:#DFE3E8}
+.sharebar.tall{height:30px}
+.sharebar i{display:block;height:100%;border-right:2px solid var(--bg)}
+.sharebar i.mine{box-shadow:inset 0 0 0 2px #fff}
+.pricerow{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.pricechip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:12px;background:#F2F4F7;border-radius:6px;padding:2px 7px}
+.pricechip i{width:9px;height:9px;border-radius:3px}
+.pricechip.mine{outline:2px solid var(--accent)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:13px}
+.chip i{width:11px;height:11px;border-radius:4px;flex:none}
+.chip.dim{color:var(--mut)}
+
+/* ===================================================== DECISION FORMS */
+.capstrip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.segcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.segcard{border:1px solid var(--line);border-radius:var(--r);padding:12px;background:#FBFCFD}
+.segcard.off{opacity:.65;background:#F1F3F5}
+.segcard-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.segcard-head b{font-family:var(--disp);font-weight:800;font-stretch:115%;text-transform:uppercase;letter-spacing:.04em}
+.segcard-body{display:flex;flex-direction:column;gap:8px}
+.ue{display:flex;flex-direction:column;gap:3px;font-size:13px;border-top:1px dashed var(--line);padding-top:8px}
+.ue em{font-style:normal;color:var(--mut);font-size:12px}
+.supplyrow{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:760px){.supplyrow{grid-template-columns:1fr}}
+.supplyrow h4{font-size:13.5px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.supplyrow .lbl{display:flex;margin-bottom:6px}
+.finrow{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.finrow.wrap{row-gap:10px}
+.poach{border:1px solid var(--line);border-radius:var(--r);padding:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#FBFCFD}
+.poach b{font-size:13px}
+.poachrow{display:inline-flex;gap:12px;align-items:center;flex-wrap:wrap}
+.autopilot-note{background:#F2F4F7;border-radius:8px;padding:10px 12px;color:var(--mut);font-size:13.5px;margin:0}
+.researchgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.research{text-align:left;border:1px solid var(--line);border-radius:var(--r);background:#fff;padding:10px;display:flex;flex-direction:column;gap:4px}
+.research b{font-size:13.5px}
+.research span{font-size:12px;color:var(--mut)}
+.research em{font-style:normal;font-family:var(--mono);font-weight:600;font-size:13px}
+.research.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.submitbar{position:sticky;bottom:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 -4px 18px rgba(24,36,48,.08);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap}
+.submitbar.inline{position:static;box-shadow:none;justify-content:flex-start}
+.submitbar .ok{color:var(--ok);font-weight:600}
+
+/* ============================================================= TRADE */
+.offer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:var(--r);padding:9px 12px;margin-bottom:8px;background:#FBFCFD}
+.offer b{font-size:14px}
+.acceptbox{display:inline-flex;gap:6px;align-items:center;margin-left:auto}
+
+/* ============================================================ REPORTS */
+.reporthead{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}
+.sparks{display:flex;gap:18px;flex-wrap:wrap}
+.sparks .mini{display:block;margin-bottom:2px}
+.spark{display:block}
+.spark-empty{color:var(--mut);font-size:12px;padding:20px 0}
+.rr{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+.rr:first-child{border-top:none;margin-top:0;padding-top:0}
+.rr h4{font-size:14px;margin-bottom:6px}
+.bigrating{font-family:var(--disp);font-weight:900;font-stretch:125%;font-size:64px;line-height:1;margin-bottom:8px}
+
+/* ========================================================== INSTRUCTOR */
+.modrow{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.pendinglist{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+
+/* ============================================================ PRESENT */
+.present{background:var(--ink);color:#F2F4F7;border-radius:14px;padding:28px;min-height:70vh}
+.present-title{font-weight:900;font-stretch:125%;text-transform:uppercase;font-size:clamp(26px,4vw,44px);letter-spacing:.03em;margin-bottom:18px}
+.present-sub{font-weight:800;font-stretch:112%;text-transform:uppercase;font-size:15px;letter-spacing:.08em;color:#9FB0C0;margin-bottom:10px}
+.present-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+@media(max-width:900px){.present-grid{grid-template-columns:1fr}}
+.present-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:clamp(16px,2vw,22px)}
+.present-row .pos{font-family:var(--disp);font-weight:900;font-stretch:125%;width:34px;font-size:clamp(18px,2.2vw,26px)}
+.present-row .rname{font-weight:700;flex:1}
+.present-row .val{font-family:var(--mono);font-size:clamp(15px,1.8vw,20px)}
+.present .wire-item{background:rgba(255,255,255,.07);color:#F2F4F7}
+.present .empty{border-color:rgba(255,255,255,.25);color:#9FB0C0}
+.present-segs{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px;margin-top:24px}
+.present .segline .mini{color:#9FB0C0}
+.present .sharebar{background:rgba(255,255,255,.14)}
+.present .sharebar i{border-right-color:var(--ink)}
+
+/* ============================================================== LOBBY */
+.lobby{max-width:980px;margin:0 auto;padding:40px 18px 60px}
+.lobby-hero{text-align:center;margin-bottom:30px}
+.lobby-hero.small{margin-bottom:16px}
+.brandmark{color:var(--ink);margin-bottom:6px}
+.lobby-hero h1{font-weight:900;font-stretch:125%;font-size:clamp(38px,7vw,64px);letter-spacing:.02em;text-transform:uppercase;
+  background:linear-gradient(90deg,var(--ink) 60%,var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+.tag{color:var(--mut);max-width:560px;margin:8px auto 0;font-size:16px}
+.lobby-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.lobby-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;cursor:pointer;box-shadow:var(--shadow)}
+.lobby-card.active{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink),var(--shadow)}
+.lobby-card h2{font-weight:800;font-stretch:112%;font-size:18px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px}
+.lobby-card h2 .mini{text-transform:none;letter-spacing:0;font-family:var(--body);font-weight:600;color:var(--accent)}
+.lobby-card p{color:var(--mut);font-size:14px;margin:4px 0 0}
+.lobby-form{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.lobby-foot{text-align:center;color:var(--mut);font-size:13px;margin-top:34px}
+
+/* ============================================================ DEMOBAR */
+.demobar{display:flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border-radius:0 0 12px 12px;padding:8px 14px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+.demobar b{font-family:var(--disp);font-weight:800;font-stretch:115%;text-transform:uppercase;letter-spacing:.06em;font-size:12px}
+.demobar .btn{border-color:#5C6B7A;background:transparent;color:#fff}
+.demobar .btn.primary{background:var(--accent);border-color:var(--accent)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+/* =========================================================================
+   FIREBASE CONFIGURATION — the only thing you need to touch.
+   Paste the config object of your Firebase project (the same project your
+   other games use is fine; this game keeps its data under /slipstream).
+   Leave it as-is and the game still runs fully in demo mode.
+   ========================================================================= */
+window.FIREBASE_CONFIG = {
+  // apiKey: "...",
+  // authDomain: "your-project.firebaseapp.com",
+  // databaseURL: "https://your-project-default-rtdb.europe-west1.firebasedatabase.app",
+  // projectId: "your-project",
+  // appId: "..."
+};
+</script>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+<script>
+/* ============================================================================
+   SLIPSTREAM — core simulation engine
+   Pure functions + serialisable state. Runs in Node (for testing/bots) and in
+   the browser (game client). No DOM, no Firebase in here.
+   ============================================================================ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.SlipstreamEngine = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  /* ------------------------------------------------------------------ RNG */
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+  /* -------------------------------------------------------------- TUNING */
+  const SEGMENTS = ['city', 'budget', 'sport', 'cargo'];
+  const SEG_META = {
+    city:   { label: 'City',   refPrice: 2400, baseDemand: 4300, priceSens: 5.6, qualSens: 2.6, mktSens: 0.55, trend: 1.004, season: [0.90, 1.15, 1.12, 0.83], parts: 150, load: 1.0 },
+    budget: { label: 'Budget', refPrice: 1500, baseDemand: 4400, priceSens: 7.6, qualSens: 1.1, mktSens: 0.40, trend: 1.002, season: [0.95, 1.08, 1.05, 0.92], parts: 60, load: 0.9 },
+    sport:  { label: 'Sport',  refPrice: 3900, baseDemand: 1900, priceSens: 3.4, qualSens: 4.2, mktSens: 0.78, trend: 1.006, season: [0.85, 1.25, 1.20, 0.70], parts: 420, load: 1.15 },
+    cargo:  { label: 'Cargo',  refPrice: 4600, baseDemand: 1150, priceSens: 4.0, qualSens: 3.2, mktSens: 0.50, trend: 1.010, season: [0.95, 1.05, 1.05, 0.95], parts: 820, load: 1.45 },
+  };
+  const T = {
+    startCash: 2600000,
+    startLines: 2, unitsPerLine: 700, lineCost: 550000, lineSalvage: 300000, lineDeprQ: 27500, // 5y straight line
+    startWorkers: 20, startEngineers: 2, startSkill: 1.0, startMorale: 0.72,
+    baseProductivity: 72,            // units / worker / quarter at skill 1, morale ~0.72
+    marketWage0: 9000,               // € / worker / quarter
+    engineerWageMult: 1.9,
+    hireCostMult: 0.35,              // one-off hiring cost, share of quarterly wage
+    fireCostMult: 0.6,               // severance, share of quarterly wage
+    trainingEffect: 0.10,            // skill points per 100k€/worker-adjusted (see fn)
+    skillDecay: 0.985, skillMax: 1.6,
+    poachPremiumMin: 0.15,           // signing premium as share of annual wage
+    poachMoraleHitVictim: 0.10, poachMoraleBoostSelf: 0.02,
+    quitBaseRate: 0.02,              // per quarter at morale 0.7
+    labourPool0PerTeam: 34,          // Velodrom layoffs: pool sized per team
+    poolInflowPerQ: 6,
+    kitTiers: { 1: { cost: 780, quality: 47 }, 2: { cost: 1020, quality: 62 }, 3: { cost: 1430, quality: 77 } },
+    supplierCapPerTeam: 2600,        // kits/quarter industry capacity per team
+    spotMultMin: 0.88, spotMultMax: 1.75,
+    contractDiscount: 0.93, contractLen: 3,
+    kitHoldCost: 14, fgHoldCostRate: 0.012, // € / kit / q ; share of FG value / q
+    engQualityCoef: 9.5,             // quality pts * log(1+eng)/log(7)
+    skillQualityCoef: 14,
+    brandDecay: 0.80, brandCoefLog: 1.0,
+    serviceStart: 0.75,
+    adminFixed: 80000,
+    segmentFixed: 70000,           // € / quarter per active segment (product mgmt, SKU complexity)               // € / quarter head office
+    lineFixed: 26000,                // € / line / quarter (rent, energy, maintenance)
+    outsideU: 1.35,                  // utility of the outside option (imports, second-hand, no purchase)
+    spillShare: 0.45,                // share of unmet demand that tries second-choice firms
+    stockoutServiceHit: 0.16, serviceRecover: 0.06, serviceCoef: 1.1,
+    interest: { A: 0.015, B: 0.0225, C: 0.0325, D: 0.045, E: 0.0575 }, // quarterly
+    emergencyRate: 0.0575,
+    creditLimitMult: 1.4,            // vs equity, floor below
+    creditLimitFloor: 1200000,
+    receiverEquityTrig: -0.12,       // share of startCash
+    receiverExitEquity: 0.10, receiverExitQuarters: 2,
+    evEbitMult: 1.35,                // on annualised avg EBIT of last 4 quarters
+    evBrandCoef: 0.55, evAssetFloorPPE: 0.55,
+    researchPrices: { perception: 45000, forecast: 55000, competitor: 60000, mystery: 30000, supply: 25000 },
+    mktEffScale: 120000,             // € for one "unit" of marketing pressure (log scale)
+    demandScaleDefault: 1.0,
+  };
+
+  const RESEARCH_META = {
+    perception: { label: 'Consumer perception map', desc: 'Price and perceived-quality position of every active product, by segment.' },
+    forecast:   { label: 'Demand forecast',        desc: 'Next two quarters of segment demand (±8% noise), including season and known events.' },
+    competitor: { label: 'Competitor teardown',    desc: 'Unit-cost, inventory and capacity estimates for one chosen rival (±10% noise).' },
+    mystery:    { label: 'Mystery shopper',        desc: 'Service reliability scores (fill rates) for all firms, by segment.' },
+    supply:     { label: 'Supply market brief',    desc: 'Supplier utilisation, spot price outlook and order-book pressure.' },
+  };
+
+  const EVENT_LIBRARY = [
+    { id: 'battery_shortage', name: 'Cell crunch', dur: 2, headline: 'Battery cell shortage: Asian suppliers cut allocations to Europe', effects: { supplierCap: -0.40 } },
+    { id: 'recession', name: 'Recession', dur: 2, headline: 'Eurozone slips into recession; big-ticket purchases postponed', effects: { demand: { city: -0.18, budget: -0.10, sport: -0.30, cargo: -0.15 } } },
+    { id: 'cargo_subsidy', name: 'Cargo subsidy', dur: 3, headline: 'EU urban freight scheme: purchase subsidies for cargo e-bikes', effects: { demand: { cargo: 0.40 }, priceSens: { cargo: -0.30 } } },
+    { id: 'bike_summer', name: 'Record summer', dur: 1, headline: 'Record cycling season: commuter and sport demand surges', effects: { demand: { city: 0.22, sport: 0.28 } } },
+    { id: 'rate_hike', name: 'Rate hike', dur: 3, headline: 'Central bank raises rates; corporate credit reprices', effects: { rates: 0.008 } },
+    { id: 'wage_round', name: 'Wage round', dur: 99, headline: 'Sector wage agreement lifts pay across the industry', effects: { marketWage: 0.12 } },
+    { id: 'tariff', name: 'Component tariff', dur: 3, headline: 'New tariff on imported drive units and cells', effects: { kitCost: 0.14 } },
+    { id: 'viral_sport', name: 'Gravel craze', dur: 2, headline: 'Gravel racing goes mainstream; sport e-bikes trend', effects: { demand: { sport: 0.35 } } },
+    { id: 'safety_recall', name: 'Recall scare', dur: 2, headline: 'Industry-wide brake-fade recall scare; buyers flock to quality', effects: { qualSens: 0.5, targetLowQuality: true } },
+    { id: 'demand_boom', name: 'Mobility boom', dur: 2, headline: 'Fuel prices spike; commuters switch to e-bikes en masse', effects: { demand: { city: 0.25, budget: 0.20, cargo: 0.15 } } },
+  ];
+
+  /* ----------------------------------------------------------- UTILITIES */
+  const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+  const r0 = x => Math.round(x);
+  const sum = arr => arr.reduce((a, b) => a + b, 0);
+  function deepCopy(o) { return JSON.parse(JSON.stringify(o)); }
+
+  /* --------------------------------------------------------- WORLD SETUP */
+  const JERSEYS = ['#E8531F', '#1E6BE8', '#18A05A', '#8A3FD1', '#E0B400', '#D6336C', '#0FA3A3', '#6B7280'];
+
+  function makeWorld(opts) {
+    const nTeams = clamp(opts.nTeams || 8, 2, 10);
+    const seed = opts.seed != null ? opts.seed : Math.floor(Math.random() * 1e9);
+    const world = {
+      v: 1,
+      name: opts.name || 'SLIPSTREAM',
+      seed,
+      q: 1,
+      quartersTotal: opts.quartersTotal || 15,
+      roundOpen: true,
+      finished: false,
+      demandScale: opts.demandScale || T.demandScaleDefault,
+      modules: Object.assign({ supply: false, trade: false, marketing: false, research: false, hr: false, financeAdv: false, endgame: false }, opts.modules || {}),
+      sessionPlan: opts.sessionPlan || defaultSessionPlan(),
+      marketWage: T.marketWage0,
+      labourPool: r0(T.labourPool0PerTeam * nTeams),
+      poolSkill: 1.0,
+      supplier: { capBase: T.supplierCapPerTeam * nTeams, mult: 1.0, util: 0.6 },
+      rateBump: 0,
+      activeEvents: [],
+      pendingEvents: [],
+      teams: {},
+      order: [],
+      newsAll: [],
+      trades: {},
+      tradeSeq: 1,
+      resultsByQ: {},
+    };
+    for (let i = 0; i < nTeams; i++) {
+      const id = 't' + (i + 1);
+      world.order.push(id);
+      world.teams[id] = makeFirm(id, (opts.teamNames && opts.teamNames[i]) || 'Team ' + (i + 1), i, opts);
+    }
+    return world;
+  }
+
+  function defaultSessionPlan() {
+    return [
+      { session: 1, fromQ: 1,  modules: [] },
+      { session: 2, fromQ: 3,  modules: ['supply', 'trade'] },
+      { session: 3, fromQ: 6,  modules: ['marketing', 'research'] },
+      { session: 4, fromQ: 9,  modules: ['hr'] },
+      { session: 5, fromQ: 12, modules: ['financeAdv'] },
+      { session: 6, fromQ: 14, modules: ['endgame'] },
+    ];
+  }
+
+  function makeFirm(id, name, idx, opts) {
+    const segs = {};
+    SEGMENTS.forEach(s => {
+      segs[s] = { active: (s === 'city' || s === 'budget'), price: SEG_META[s].refPrice, kitTier: 2, mkt: 0 };
+    });
+    const fg = {}; SEGMENTS.forEach(s => { fg[s] = { units: 0, cost: 0, quality: 60 }; });
+    const brand = {}; SEGMENTS.forEach(s => { brand[s] = 1.0; });
+    const service = {}; SEGMENTS.forEach(s => { service[s] = T.serviceStart; });
+    return {
+      id, name, idx, color: JERSEYS[idx % JERSEYS.length],
+      joinCode: null, isBot: !!(opts && opts.allBots), botType: null,
+      cash: (opts && opts.startCash) || T.startCash,
+      debt: 0, emergencyDebt: 0,
+      lines: T.startLines, linesBuilding: 0,
+      workers: T.startWorkers, engineers: T.startEngineers,
+      skill: T.startSkill, morale: T.startMorale, wage: T.marketWage0,
+      kits: { 1: 0, 2: 800, 3: 0 },
+      kitCostAvg: { 1: T.kitTiers[1].cost, 2: T.kitTiers[2].cost, 3: T.kitTiers[3].cost },
+      kitOrders: [], contracts: [],
+      fg, brand, service, segs,
+      rating: 'B', receivership: null, recoverQ: 0,
+      ppe: T.startLines * T.lineCost * 0.8,
+      cum: { revenue: 0, ebit: 0 },
+      ebitHist: [], valuation: 0, equity: 0,
+      lastResults: null, research: {}, autopilot: false,
+      log: [],
+    };
+  }
+
+  /* ---------------------------------------------------- DEFAULT DECISIONS */
+  function defaultDecisions(world, tid) {
+    const f = world.teams[tid];
+    const d = { production: {}, segs: {}, buyKits: { spot: { 1: 0, 2: 0, 3: 0 } }, newContract: null,
+      marketing: {}, research: [], researchTarget: null,
+      hr: { hireWorkers: 0, fireWorkers: 0, hireEngineers: 0, fireEngineers: 0, wage: f.wage, training: 0, poach: null },
+      finance: { draw: 0, repay: 0, buyLines: 0, sellLines: 0 } };
+    SEGMENTS.forEach(s => {
+      d.segs[s] = { active: f.segs[s].active, price: f.segs[s].price, kitTier: f.segs[s].kitTier };
+      d.production[s] = f.segs[s].active ? guessShareProduction(world, f, s) : 0;
+      d.marketing[s] = 0;
+    });
+    return d;
+  }
+  function guessShareProduction(world, f, s) {
+    const n = Math.max(1, world.order.filter(id => world.teams[id].segs[s].active).length);
+    const m = SEG_META[s];
+    return r0(m.baseDemand * world.demandScale * m.season[(world.q - 1) % 4] / n * 0.9);
+  }
+
+  /* --------------------------------------------------------- QUALITY MODEL */
+  function firmQuality(f, tier) {
+    const eng = T.engQualityCoef * Math.log(1 + f.engineers) / Math.log(7);
+    const sk = T.skillQualityCoef * (f.skill - 1.0);
+    return T.kitTiers[tier].quality + eng + sk;
+  }
+
+  /* -------------------------------------------------- EVENT EFFECT HELPERS */
+  function eventMods(world) {
+    const m = { demand: {}, priceSens: {}, qualSens: 0, supplierCap: 0, kitCost: 0, rates: 0, marketWage: 0 };
+    SEGMENTS.forEach(s => { m.demand[s] = 0; m.priceSens[s] = 0; });
+    (world.activeEvents || []).forEach(ev => {
+      const e = ev.effects || {};
+      if (e.demand) SEGMENTS.forEach(s => { if (e.demand[s]) m.demand[s] += e.demand[s]; });
+      if (e.priceSens) SEGMENTS.forEach(s => { if (e.priceSens[s]) m.priceSens[s] += e.priceSens[s]; });
+      if (e.qualSens) m.qualSens += e.qualSens;
+      if (e.supplierCap) m.supplierCap += e.supplierCap;
+      if (e.kitCost) m.kitCost += e.kitCost;
+      if (e.rates) m.rates += e.rates;
+      if (e.marketWage) m.marketWage = Math.max(m.marketWage, e.marketWage);
+    });
+    return m;
+  }
+
+  function spotKitPrice(world, tier, mods, qty) {
+    const base = T.kitTiers[tier].cost * (1 + (mods ? mods.kitCost : 0));
+    const u = world.supplier.util;
+    const mult = clamp(0.86 + 0.62 * Math.pow(Math.max(0, u), 2.2), T.spotMultMin, T.spotMultMax);
+    const bulk = qty ? Math.min(0.035, Math.floor(qty / 400) * 0.008) : 0;
+    return r0(base * mult * (1 - bulk));
+  }
+
+  /* ============================================================ RESOLUTION */
+  function resolveQuarter(world, decisionsIn) {
+    const w = normalizeWorld(deepCopy(world));
+    const q = w.q;
+    const rng = mulberry32((w.seed ^ hashStr('q' + q)) >>> 0);
+    const news = [];
+    const mods = eventMods(w);
+    const season = (q - 1) % 4;
+    const decisions = {};
+    w.order.forEach(tid => {
+      const f = w.teams[tid];
+      let d = decisionsIn && decisionsIn[tid] ? deepCopy(decisionsIn[tid]) : null;
+      if (!d) { d = f.isBot ? null : defaultDecisions(w, tid); f.autopilot = !f.isBot; if (d) d.__autopilot = true; }
+      else f.autopilot = !!d.__autopilot;
+      if (!d) { d = defaultDecisions(w, tid); d.__autopilot = true; }
+      decisions[tid] = sanitizeDecisions(w, tid, d);
+    });
+
+    /* -- market wage drift + event */
+    if (mods.marketWage) { w.marketWage = r0(T.marketWage0 * (1 + mods.marketWage)); }
+    const avgWageOffered = sum(w.order.map(id => decisions[id].hr.wage)) / w.order.length;
+    w.marketWage = r0(clamp(w.marketWage * 0.9 + avgWageOffered * 0.1, w.marketWage * 0.97, w.marketWage * 1.06));
+
+    /* -- per firm: arrivals, HR, purchases, production -- */
+    const perFirm = {};
+    let totalKitOrdersThisQ = 0;
+
+    w.order.forEach(tid => {
+      const f = w.teams[tid];
+      const d = decisions[tid];
+      const segZero = () => { const o = {}; SEGMENTS.forEach(sg => o[sg] = 0); return o; };
+      const R = perFirm[tid] = { revenue: 0, cogs: 0, wages: 0, hiring: 0, severance: 0, training: 0, marketing: 0,
+        research: 0, holding: 0, fixed: 0, depr: 0, interest: 0, otherIncome: 0, poachCost: 0,
+        sold: segZero(), demandAlloc: segZero(), produced: segZero(), stockouts: segZero(), kitSpend: 0, capexCash: 0, notes: [] };
+
+      /* arrivals */
+      if (f.linesBuilding > 0) { f.lines += f.linesBuilding; f.ppe += f.linesBuilding * T.lineCost; R.notes.push(f.linesBuilding + ' new assembly line(s) commissioned'); f.linesBuilding = 0; }
+      f.kitOrders = f.kitOrders.filter(o => {
+        if (o.arrivesQ <= q) { receiveKits(f, o.tier, o.qty, o.unitPrice); return false; } return true;
+      });
+      f.contracts.forEach(c => { if (c.remaining > 0) { receiveKits(f, c.tier, c.qtyPerQ, c.unitPrice); f.cash -= c.qtyPerQ * c.unitPrice; R.kitSpend += c.qtyPerQ * c.unitPrice; c.remaining--; } });
+      f.contracts = f.contracts.filter(c => c.remaining > 0);
+
+      /* HR (module-gated inputs already sanitised) */
+      const hr = d.hr;
+      f.wage = hr.wage;
+      // fires
+      if (hr.fireWorkers > 0) { const n = Math.min(hr.fireWorkers, f.workers); f.workers -= n; R.severance += n * f.wage * T.fireCostMult; w.labourPool += n; f.morale = clamp(f.morale - 0.04 - 0.008 * n, 0.2, 1); }
+      if (hr.fireEngineers > 0) { const n = Math.min(hr.fireEngineers, f.engineers); f.engineers -= n; R.severance += n * f.wage * T.engineerWageMult * T.fireCostMult; }
+      f._hireReq = { w: hr.hireWorkers, e: hr.hireEngineers };
+      f._training = hr.training;
+      f._poach = hr.poach;
+    });
+
+    /* hiring from common pool — wage-weighted allocation */
+    (function hireFromPool() {
+      const reqs = w.order.map(tid => ({ tid, n: w.teams[tid]._hireReq.w, wage: decisions[tid].hr.wage }))
+        .filter(x => x.n > 0);
+      const totalReq = sum(reqs.map(x => x.n));
+      const avail = w.labourPool;
+      if (totalReq === 0) return;
+      const weights = reqs.map(x => x.n * Math.pow(Math.max(0.5, x.wage / w.marketWage), 2.4));
+      const wsum = sum(weights);
+      reqs.forEach((x, i) => {
+        const share = wsum > 0 ? weights[i] / wsum : 0;
+        const fillRatio = Math.min(1, (avail * share) / x.n * (0.75 + 0.5 * Math.min(1.4, x.wage / w.marketWage) / 1.4));
+        const got = Math.min(x.n, Math.floor(x.n * fillRatio + rng() * 0.6));
+        const f = w.teams[x.tid];
+        f.workers += got; w.labourPool -= got;
+        perFirm[x.tid].hiring += got * x.wage * T.hireCostMult;
+        if (got < x.n) perFirm[x.tid].notes.push('Hired ' + got + '/' + x.n + ' assembly workers — tight labour market');
+        else if (got > 0) perFirm[x.tid].notes.push('Hired ' + got + ' assembly workers');
+      });
+      w.labourPool = Math.max(0, w.labourPool);
+      // engineers: hired on the open market, pricier, always available but slow
+      w.order.forEach(tid => {
+        const f = w.teams[tid]; const n = f._hireReq.e;
+        if (n > 0) { const got = Math.min(n, 2); f.engineers += got; perFirm[tid].hiring += got * f.wage * T.engineerWageMult * 1.2; if (got < n) perFirm[tid].notes.push('Engineer hiring capped at 2 per quarter'); }
+      });
+    })();
+
+    /* poaching — shuffled order */
+    (function poaching() {
+      if (!w.modules.hr) return;
+      const raiders = w.order.filter(tid => decisions[tid].hr.poach && decisions[tid].hr.poach.target && decisions[tid].hr.poach.count > 0);
+      for (let i = raiders.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [raiders[i], raiders[j]] = [raiders[j], raiders[i]]; }
+      raiders.forEach(tid => {
+        const f = w.teams[tid]; const p = decisions[tid].hr.poach;
+        const v = w.teams[p.target]; if (!v || v.id === tid) return;
+        const want = clamp(p.count, 1, 6);
+        const premium = Math.max(T.poachPremiumMin, p.premium || T.poachPremiumMin);
+        const wageRatio = (f.wage) / Math.max(1, v.wage);
+        const pSucc = clamp(0.22 + 0.55 * (wageRatio - 1) + 0.9 * (premium - T.poachPremiumMin) + 0.5 * (0.72 - v.morale), 0.05, 0.9);
+        let got = 0; for (let k = 0; k < want && v.workers > 1; k++) if (rng() < pSucc) got++;
+        got = Math.min(got, Math.max(0, v.workers - 4));
+        if (got > 0) {
+          v.workers -= got; f.workers += got;
+          const cost = got * (f.wage * 4 * premium);
+          perFirm[tid].poachCost += cost;
+          const skillGain = Math.max(0, (v.skill - f.skill)) * (got / Math.max(1, f.workers)) * 0.6;
+          f.skill = clamp(f.skill + skillGain, 0.8, T.skillMax);
+          v.morale = clamp(v.morale - T.poachMoraleHitVictim, 0.2, 1);
+          f.morale = clamp(f.morale + T.poachMoraleBoostSelf, 0.2, 1);
+          news.push({ q, type: 'poach', text: f.name + ' poaches ' + got + ' skilled staff from ' + v.name + ' with a ' + Math.round(premium * 100) + '% signing premium' });
+        } else {
+          perFirm[tid].poachCost += f.wage * 0.5; // headhunter retainer wasted
+          perFirm[tid].notes.push('Poaching attempt on ' + v.name + ' failed');
+        }
+      });
+    })();
+
+    /* training, morale, quits */
+    w.order.forEach(tid => {
+      const f = w.teams[tid]; const R = perFirm[tid];
+      if (f._training > 0) {
+        R.training = f._training;
+        const perHead = f._training / Math.max(1, f.workers + f.engineers);
+        f.skill = clamp(f.skill + T.trainingEffect * Math.log(1 + perHead / 1500), 0.8, T.skillMax);
+        f.morale = clamp(f.morale + 0.02, 0.2, 1);
+      }
+      f.skill = clamp(f.skill * T.skillDecay + 0.015, 0.8, T.skillMax);
+      const wageRel = f.wage / w.marketWage;
+      f.morale = clamp(f.morale + 0.10 * (wageRel - 1) + (f.receivership ? -0.03 : 0.01), 0.2, 1);
+      const quitRate = clamp(T.quitBaseRate + (0.7 - f.morale) * 0.10 + Math.max(0, 1 - wageRel) * 0.05, 0, 0.14);
+      const quits = Math.floor(f.workers * quitRate + (rng() < (f.workers * quitRate % 1) ? 1 : 0));
+      if (quits > 0) { f.workers -= quits; w.labourPool += quits; if (quits >= 2) R.notes.push(quits + ' workers resigned (morale ' + f.morale.toFixed(2) + ')'); }
+      delete f._hireReq; delete f._training; delete f._poach;
+    });
+    w.labourPool += T.poolInflowPerQ;
+
+    /* purchases: spot kit orders (arrive q+1) + new contracts */
+    w.order.forEach(tid => {
+      const f = w.teams[tid]; const d = decisions[tid]; const R = perFirm[tid];
+      [1, 2, 3].forEach(tier => {
+        const qty = d.buyKits.spot[tier] || 0;
+        if (qty > 0) {
+          const price = spotKitPrice(w, tier, mods, qty);
+          const cost = qty * price;
+          f.cash -= cost; R.kitSpend += cost;
+          f.kitOrders.push({ tier, qty, unitPrice: price, arrivesQ: q + 1 });
+          totalKitOrdersThisQ += qty;
+        }
+      });
+      if (d.newContract && w.modules.supply) {
+        const c = d.newContract;
+        const volDisc = Math.min(0.06, Math.floor(c.qtyPerQ / 400) * 0.012);
+        const price = r0(spotKitPrice(w, c.tier, mods) * T.contractDiscount * (1 - volDisc));
+        f.contracts.push({ tier: c.tier, qtyPerQ: c.qtyPerQ, unitPrice: price, remaining: T.contractLen });
+        R.notes.push('Signed ' + T.contractLen + '-quarter contract: ' + c.qtyPerQ + ' T' + c.tier + ' kits/q @ €' + price);
+        totalKitOrdersThisQ += c.qtyPerQ * 0.6;
+      }
+      f.contracts.forEach(c => { totalKitOrdersThisQ += c.qtyPerQ * 0.4; });
+    });
+
+    /* supplier utilisation update */
+    const capNow = w.supplier.capBase * (1 + mods.supplierCap);
+    w.supplier.util = clamp(0.7 * w.supplier.util + 0.3 * (totalKitOrdersThisQ / Math.max(1, capNow)), 0.1, 1.6);
+
+    /* finance decisions: capex + loans */
+    w.order.forEach(tid => {
+      const f = w.teams[tid]; const d = decisions[tid]; const R = perFirm[tid];
+      if (d.finance.sellLines > 0) { const n = Math.min(d.finance.sellLines, Math.max(0, f.lines - 1)); f.lines -= n; f.cash += n * T.lineSalvage; f.ppe = Math.max(0, f.ppe - n * T.lineCost * 0.6); R.otherIncome += 0; if (n > 0) R.notes.push('Sold ' + n + ' line(s) for €' + (n * T.lineSalvage / 1000) + 'k'); }
+      if (d.finance.buyLines > 0 && !f.receivership) { const n = d.finance.buyLines; const cost = n * T.lineCost; f.cash -= cost; R.capexCash += cost; f.linesBuilding += n; R.notes.push('Ordered ' + n + ' assembly line(s) — online next quarter'); }
+      if (d.finance.repay > 0) { let n = Math.min(d.finance.repay, f.debt + f.emergencyDebt, f.cash); const e = Math.min(n, f.emergencyDebt); f.emergencyDebt -= e; n -= e; const b = Math.min(n, f.debt); f.debt -= b; f.cash -= (e + b); }
+      if (d.finance.draw > 0) { const limit = creditLimit(f); const room = Math.max(0, limit - f.debt); const n = Math.min(d.finance.draw, room); f.debt += n; f.cash += n; if (n < d.finance.draw) R.notes.push('Credit line capped: drew €' + r0(n / 1000) + 'k of requested'); }
+    });
+
+    /* production */
+    w.order.forEach(tid => {
+      const f = w.teams[tid]; const d = decisions[tid]; const R = perFirm[tid];
+      const capLines = f.lines * T.unitsPerLine;
+      const moraleFactor = 0.6 + 0.55 * f.morale;
+      const capLabour = Math.floor(f.workers * T.baseProductivity * f.skill * moraleFactor);
+      let plan = SEGMENTS.map(s => ({ s, qty: d.segs[s].active ? Math.max(0, r0(d.production[s] || 0)) : 0, tier: d.segs[s].kitTier, load: SEG_META[s].load }));
+      let totalLoad = sum(plan.map(p => p.qty * p.load));
+      const capMax = Math.min(capLines, capLabour);
+      if (totalLoad > capMax && totalLoad > 0) {
+        const sc = capMax / totalLoad; plan.forEach(p => p.qty = Math.floor(p.qty * sc));
+        R.notes.push('Production plan cut to capacity (' + (capLines <= capLabour ? 'line' : 'labour') + '-bound at ' + capMax + ' assembly hours-equivalent)');
+      }
+      // kit availability per tier
+      const need = { 1: 0, 2: 0, 3: 0 }; plan.forEach(p => need[p.tier] += p.qty);
+      [1, 2, 3].forEach(tier => {
+        if (need[tier] > f.kits[tier]) {
+          const sc = f.kits[tier] / Math.max(1, need[tier]);
+          plan.forEach(p => { if (p.tier === tier) p.qty = Math.floor(p.qty * sc); });
+          R.notes.push('T' + tier + ' kit shortage limited production');
+        }
+      });
+      const labourCostPerUnit = capLabour > 0 ? (f.workers * f.wage) / Math.max(capLabour, 1) : 0;
+      let partsCash = 0; let absorbed = 0;
+      plan.forEach(p => {
+        if (p.qty <= 0) { R.produced[p.s] = 0; return; }
+        f.kits[p.tier] -= p.qty;
+        const kitC = f.kitCostAvg[p.tier];
+        const parts = SEG_META[p.s].parts;
+        partsCash += parts * p.qty;
+        const labourUnit = labourCostPerUnit * 0.92 * p.load;
+        absorbed += labourUnit * p.qty;
+        const unitCost = kitC + labourUnit + parts + 40; // 40 consumables
+        const qual = firmQuality(f, p.tier);
+        const fgSeg = f.fg[p.s];
+        const newUnits = fgSeg.units + p.qty;
+        fgSeg.cost = newUnits > 0 ? (fgSeg.cost * fgSeg.units + unitCost * p.qty) / newUnits : 0;
+        fgSeg.quality = newUnits > 0 ? (fgSeg.quality * fgSeg.units + qual * p.qty) / newUnits : qual;
+        fgSeg.units = newUnits;
+        R.produced[p.s] = p.qty;
+      });
+      const producedTotal = sum(plan.map(p => Math.max(0, p.qty)));
+      f.cash -= partsCash + 40 * producedTotal;
+      R.partsCash = partsCash;
+      R.absorbedLabour = absorbed;
+      // learning by doing: volume builds capability
+      if (producedTotal > 0) f.skill = clamp(f.skill + 0.013 * (producedTotal / 1000), 0.8, T.skillMax);
+    });
+
+    /* marketing spend + brand build */
+    w.order.forEach(tid => {
+      const f = w.teams[tid]; const d = decisions[tid]; const R = perFirm[tid];
+      SEGMENTS.forEach(s => {
+        const spend = w.modules.marketing ? Math.max(0, d.marketing[s] || 0) : 0;
+        R.marketing += spend;
+        const press = Math.log(1 + spend / T.mktEffScale);
+        f.brand[s] = clamp(f.brand[s] * T.brandDecay + press * T.brandCoefLog + 0.18, 0.1, 6);
+        f.segs[s] = { active: d.segs[s].active, price: d.segs[s].price, kitTier: d.segs[s].kitTier, mkt: spend };
+      });
+      f.cash -= R.marketing;
+    });
+
+    /* ------------------------------------------------ DEMAND & SALES */
+    const segResults = {};
+    SEGMENTS.forEach(s => {
+      const m = SEG_META[s];
+      const D = m.baseDemand * w.demandScale * Math.pow(m.trend, q) * m.season[season] * (1 + mods.demand[s]) * (0.97 + 0.06 * rng());
+      const priceSens = m.priceSens * (1 + (mods.priceSens[s] || 0));
+      const qualSens = m.qualSens * (1 + mods.qualSens);
+      const entrants = w.order.map(tid => {
+        const f = w.teams[tid]; const sg = f.segs[s];
+        if (!sg.active) return null;
+        const hasStockOrPlan = f.fg[s].units > 0;
+        const qual = f.fg[s].units > 0 ? f.fg[s].quality : firmQuality(f, sg.kitTier);
+        const U = priceSens * (m.refPrice - sg.price) / m.refPrice
+          + qualSens * (qual - 60) / 60
+          + m.mktSens * Math.log(1 + f.brand[s])
+          + T.serviceCoef * (f.service[s] - 0.75)
+          + (f.receivership ? -0.15 : 0);
+        return { tid, U, stock: f.fg[s].units, price: sg.price, hasStockOrPlan };
+      }).filter(Boolean);
+      const expU = entrants.map(e => Math.exp(clamp(e.U, -6, 6)));
+      const denom = sum(expU) + Math.exp(T.outsideU);
+      let alloc = entrants.map((e, i) => ({ ...e, demand: D * expU[i] / denom }));
+      // first pass sales
+      let unmetPool = 0;
+      alloc.forEach(a => {
+        const f = w.teams[a.tid];
+        const sold = Math.min(Math.floor(a.demand), f.fg[s].units);
+        a.sold = sold; a.unmet = Math.max(0, Math.floor(a.demand) - sold);
+        unmetPool += a.unmet;
+      });
+      // spill pass
+      if (unmetPool > 0) {
+        const spill = unmetPool * T.spillShare;
+        const withStock = alloc.filter(a => (w.teams[a.tid].fg[s].units - a.sold) > 0);
+        const wsum = sum(withStock.map(a => Math.exp(clamp(a.U, -6, 6))));
+        withStock.forEach(a => {
+          const extra = Math.floor(spill * Math.exp(clamp(a.U, -6, 6)) / Math.max(1e-9, wsum));
+          const f = w.teams[a.tid];
+          const can = Math.min(extra, f.fg[s].units - a.sold);
+          a.sold += can;
+        });
+      }
+      // book sales
+      alloc.forEach(a => {
+        const f = w.teams[a.tid]; const R = perFirm[a.tid];
+        const fgSeg = f.fg[s];
+        const rev = a.sold * a.price;
+        const cogs = a.sold * fgSeg.cost;
+        fgSeg.units -= a.sold;
+        R.revenue += rev; R.cogs += cogs;
+        R.sold[s] = a.sold; R.demandAlloc[s] = Math.floor(a.demand);
+        f.cash += rev;
+        const fillRate = a.demand > 1 ? Math.min(1, a.sold / a.demand) : 1;
+        if (a.unmet > 0 && fillRate < 0.95) {
+          f.service[s] = clamp(f.service[s] - T.stockoutServiceHit * (1 - fillRate), 0.2, 1);
+          f.brand[s] = Math.max(0.1, f.brand[s] - 0.12);
+          R.stockouts[s] = a.unmet;
+        } else {
+          f.service[s] = clamp(f.service[s] + T.serviceRecover, 0.2, 1);
+        }
+      });
+      segResults[s] = {
+        demand: r0(D),
+        avgPrice: alloc.length ? r0(sum(alloc.map(a => a.price)) / alloc.length) : 0,
+        firms: alloc.map(a => ({ tid: a.tid, sold: a.sold, price: a.price, share: 0 })),
+      };
+      const totSold = sum(alloc.map(a => a.sold));
+      segResults[s].firms.forEach(fr => { fr.share = totSold > 0 ? fr.sold / totSold : 0; });
+      segResults[s].totalSold = totSold;
+    });
+
+    /* ------------------------------------------------ COSTS & STATEMENTS */
+    const results = { q, season, segs: segResults, firms: {}, news: [], events: (w.activeEvents || []).map(e => e.name) };
+    w.order.forEach(tid => {
+      const f = w.teams[tid]; const R = perFirm[tid]; const d = decisions[tid];
+      const cashWages = f.workers * f.wage + f.engineers * f.wage * T.engineerWageMult;
+      R.wages = Math.max(0, r0(cashWages - (R.absorbedLabour || 0))); // unabsorbed labour + engineering (rest sits in COGS)
+      f.cash -= cashWages + R.hiring + R.severance + R.training + R.poachCost;
+      // research purchases
+      if (w.modules.research) {
+        (d.research || []).forEach(rid => {
+          const price = T.researchPrices[rid]; if (!price) return;
+          R.research += price; f.cash -= price;
+          f.research[q] = f.research[q] || {};
+          f.research[q][rid] = buildResearchReport(w, tid, rid, d.researchTarget, mods, rng);
+        });
+      }
+      // holding
+      const kitsHeld = f.kits[1] + f.kits[2] + f.kits[3];
+      const fgVal = sum(SEGMENTS.map(s => f.fg[s].units * f.fg[s].cost));
+      R.holding = r0(kitsHeld * T.kitHoldCost + fgVal * T.fgHoldCostRate);
+      f.cash -= R.holding;
+      // fixed + depreciation
+      const activeSegs = SEGMENTS.filter(s => f.segs[s].active).length;
+      R.fixed = T.adminFixed + f.lines * T.lineFixed + activeSegs * T.segmentFixed;
+      f.cash -= R.fixed;
+      R.depr = f.lines * T.lineDeprQ;
+      f.ppe = Math.max(0, f.ppe - R.depr);
+      // interest
+      const rate = (T.interest[f.rating] || 0.03) + w.rateBump + mods.rates;
+      R.interest = r0(f.debt * rate + f.emergencyDebt * (T.emergencyRate + w.rateBump + mods.rates));
+      f.cash -= R.interest;
+      // receivership sweep
+      if (f.receivership && f.cash > 300000) { const sweep = r0((f.cash - 300000) * 0.5); const pay = Math.min(sweep, f.emergencyDebt + f.debt); let left = pay; const e = Math.min(left, f.emergencyDebt); f.emergencyDebt -= e; left -= e; f.debt -= Math.min(left, f.debt); f.cash -= pay; if (pay > 0) R.notes.push('Receiver swept €' + r0(pay / 1000) + 'k to creditors'); }
+      // emergency funding
+      if (f.cash < 0) { const n = -f.cash; f.emergencyDebt += n; f.cash = 0; R.notes.push('Emergency facility drawn: €' + r0(n / 1000) + 'k at penalty rate'); }
+      // banks do not let the emergency facility linger: auto-repay from cash, then refinance into the revolver
+      if (f.emergencyDebt > 0 && f.cash > 150000) { const pay = Math.min(f.emergencyDebt, f.cash - 150000); f.emergencyDebt -= pay; f.cash -= pay; if (pay > 0) R.notes.push('Emergency facility repaid: €' + r0(pay / 1000) + 'k'); }
+      if (f.emergencyDebt > 0) { const lim = creditLimit(f); const room = Math.max(0, lim - f.debt); const refi = Math.min(f.emergencyDebt, room); if (refi > 0) { f.emergencyDebt -= refi; f.debt += refi; R.notes.push('Bank refinanced €' + r0(refi / 1000) + 'k of emergency debt into the credit line'); } }
+
+      /* P&L */
+      const gross = R.revenue - R.cogs;
+      const opex = R.wages + R.hiring + R.severance + R.training + R.marketing + R.research + R.holding + R.fixed + R.poachCost;
+      const ebitda = gross - opex;
+      const ebit = ebitda - R.depr;
+      const pbt = ebit - R.interest;
+      f.ebitHist.push(ebit); if (f.ebitHist.length > 8) f.ebitHist.shift();
+      f.cum.revenue += R.revenue; f.cum.ebit += ebit;
+
+      /* balance sheet */
+      const kitVal = f.kits[1] * f.kitCostAvg[1] + f.kits[2] * f.kitCostAvg[2] + f.kits[3] * f.kitCostAvg[3];
+      const fgVal2 = sum(SEGMENTS.map(s => f.fg[s].units * f.fg[s].cost));
+      const onOrderVal = sum(f.kitOrders.map(o => o.qty * o.unitPrice));
+      const assets = f.cash + kitVal + fgVal2 + onOrderVal + f.ppe;
+      const equity = assets - f.debt - f.emergencyDebt;
+      f.equity = r0(equity);
+
+      /* rating */
+      f.rating = computeRating(f, ebit, R.interest);
+
+      /* receivership transitions */
+      if (!f.receivership && f.equity < T.receiverEquityTrig * T.startCash) {
+        f.receivership = { sinceQ: q }; f.recoverQ = 0;
+        news.push({ q, type: 'receiver', text: f.name + ' enters receivership — the bank takes control of restructuring' });
+      } else if (f.receivership) {
+        if (f.equity > T.receiverExitEquity * T.startCash) { f.recoverQ++; if (f.recoverQ >= T.receiverExitQuarters) { f.receivership = null; f.recoverQ = 0; news.push({ q, type: 'receiver', text: f.name + ' exits receivership after a successful restructuring' }); } }
+        else f.recoverQ = 0;
+      }
+
+      /* valuation */
+      const last4 = f.ebitHist.slice(-4);
+      const annualEBIT = (sum(last4) / last4.length) * 4;
+      const brandVal = sum(SEGMENTS.map(s => f.brand[s])) * 90000 * T.evBrandCoef;
+      const opsValue = Math.max(0, annualEBIT) * T.evEbitMult + brandVal;
+      const netCash = f.cash - f.debt - f.emergencyDebt;
+      f.valuation = r0(Math.max(0, opsValue + netCash, equity * 0.8));
+
+      results.firms[tid] = {
+        name: f.name, autopilot: f.autopilot, receivership: !!f.receivership,
+        pnl: { revenue: r0(R.revenue), cogs: r0(R.cogs), gross: r0(gross), wages: r0(R.wages), hiring: r0(R.hiring + R.severance + R.poachCost), marketing: r0(R.marketing), research: r0(R.research), training: r0(R.training), holding: r0(R.holding), fixed: r0(R.fixed), ebitda: r0(ebitda), depr: r0(R.depr), ebit: r0(ebit), interest: r0(R.interest), pbt: r0(pbt) },
+        bs: { cash: r0(f.cash), kits: r0(kitVal), fg: r0(fgVal2), onOrder: r0(onOrderVal), ppe: r0(f.ppe), assets: r0(assets), debt: r0(f.debt), emergencyDebt: r0(f.emergencyDebt), equity: r0(equity) },
+        cf: { op: r0(ebitda - R.interest), invest: -r0(R.capexCash), fin: 0 },
+        ops: { produced: R.produced, sold: R.sold, demand: R.demandAlloc, stockouts: R.stockouts, lines: f.lines, workers: f.workers, engineers: f.engineers, skill: +f.skill.toFixed(2), morale: +f.morale.toFixed(2), kits: { ...f.kits } },
+        rating: f.rating, valuation: f.valuation, notes: R.notes,
+      };
+    });
+
+    /* ------------------------------------------------ NEWS GENERATION */
+    SEGMENTS.forEach(s => {
+      const sr = segResults[s];
+      if (!sr.firms.length) return;
+      const prev = w.resultsByQ[q - 1];
+      if (prev && prev.segs[s]) {
+        sr.firms.forEach(fr => {
+          const old = prev.segs[s].firms.find(x => x.tid === fr.tid);
+          if (old && fr.share - old.share > 0.09 && fr.sold > 50) news.push({ q, type: 'share', text: w.teams[fr.tid].name + ' surges in ' + SEG_META[s].label + ': ' + Math.round(fr.share * 100) + '% share (+' + Math.round((fr.share - old.share) * 100) + 'pp)' });
+        });
+        const oldAvg = prev.segs[s].avgPrice;
+        if (oldAvg > 0 && sr.avgPrice < oldAvg * 0.93) news.push({ q, type: 'price', text: 'Price war in ' + SEG_META[s].label + ': average prices down ' + Math.round((1 - sr.avgPrice / oldAvg) * 100) + '% this quarter' });
+      }
+    });
+    w.order.forEach(tid => {
+      const R = perFirm[tid];
+      const so = sum(Object.values(R.stockouts || {}));
+      if (so > 120) news.push({ q, type: 'stockout', text: w.teams[tid].name + ' leaves ~' + r0(so) + ' customers unserved — retailers furious' });
+      if (w.teams[tid].autopilot) news.push({ q, type: 'autopilot', text: w.teams[tid].name + ' ran on standing orders this quarter (no new decisions filed)' });
+    });
+    (w.activeEvents || []).forEach(ev => { if (ev.justStarted) { news.push({ q, type: 'event', text: ev.headline }); ev.justStarted = false; } });
+
+    /* tick events */
+    w.activeEvents = (w.activeEvents || []).map(e => ({ ...e, remaining: e.remaining - 1 })).filter(e => e.remaining > 0);
+    /* activate pending events scheduled for next quarter */
+    (w.pendingEvents || []).forEach(pe => {
+      if (pe.startQ === q + 1) {
+        w.activeEvents.push({ ...pe, justStarted: true });
+        if (pe.effects && pe.effects.targetLowQuality) {
+          let worst = null, worstQ = Infinity;
+          w.order.forEach(id => {
+            const f = w.teams[id];
+            const avgQ = sum(SEGMENTS.filter(s => f.segs[s].active).map(s => f.fg[s].units > 0 ? f.fg[s].quality : firmQuality(f, f.segs[s].kitTier))) / Math.max(1, SEGMENTS.filter(s => f.segs[s].active).length);
+            if (avgQ < worstQ) { worstQ = avgQ; worst = id; }
+          });
+          if (worst) {
+            const f = w.teams[worst];
+            f.cash -= 250000;
+            SEGMENTS.forEach(s => { f.brand[s] = Math.max(0.1, f.brand[s] - 0.8); f.service[s] = clamp(f.service[s] - 0.1, 0.2, 1); });
+            news.push({ q, type: 'event', text: 'Regulators single out ' + f.name + ' in the recall investigation — €250k in recall costs and reputational damage' });
+          }
+        }
+      }
+    });
+    w.pendingEvents = (w.pendingEvents || []).filter(pe => pe.startQ > q + 1);
+
+    /* module unlocks by session plan */
+    const nextQ = q + 1;
+    (w.sessionPlan || []).forEach(sp => { if (sp.fromQ <= nextQ) (sp.modules || []).forEach(mo => { w.modules[mo] = true; }); });
+
+    results.news = news;
+    w.newsAll = (w.newsAll || []).concat(news).slice(-200);
+    w.resultsByQ[q] = results;
+    w.q = nextQ;
+    if (w.q > w.quartersTotal) { w.finished = true; w.roundOpen = false; }
+    else w.roundOpen = true;
+    return { world: w, results };
+  }
+
+  function receiveKits(f, tier, qty, unitPrice) {
+    const old = f.kits[tier]; const nu = old + qty;
+    f.kitCostAvg[tier] = nu > 0 ? (f.kitCostAvg[tier] * old + unitPrice * qty) / nu : unitPrice;
+    f.kits[tier] = nu;
+  }
+
+  function creditLimit(f) { return Math.max(T.creditLimitFloor, f.equity * T.creditLimitMult); }
+
+  function computeRating(f, ebit, interest) {
+    const cov = interest > 1000 ? ebit / interest : (ebit > 0 ? 10 : 0);
+    const lev = (f.debt + f.emergencyDebt) / Math.max(1, Math.max(f.equity, 200000));
+    let score = 0;
+    score += cov > 6 ? 2 : cov > 3 ? 1 : cov > 1 ? 0 : cov > 0 ? -1 : -2;
+    score += lev < 0.4 ? 2 : lev < 0.9 ? 1 : lev < 1.5 ? 0 : lev < 2.5 ? -1 : -2;
+    score += ebit > 0 ? 1 : -1;
+    if (f.emergencyDebt > 0) score -= 2;
+    if (f.receivership) score = -5;
+    return score >= 4 ? 'A' : score >= 2 ? 'B' : score >= 0 ? 'C' : score >= -3 ? 'D' : 'E';
+  }
+
+  /* --------------------------------------------------- RESEARCH REPORTS */
+  function noisy(rng, x, pct) { return x * (1 + (rng() * 2 - 1) * pct); }
+  function buildResearchReport(w, tid, rid, target, mods, rng) {
+    if (rid === 'perception') {
+      const out = {};
+      SEGMENTS.forEach(s => {
+        out[s] = w.order.filter(id => w.teams[id].segs[s].active).map(id => {
+          const f = w.teams[id];
+          const qual = f.fg[s].units > 0 ? f.fg[s].quality : firmQuality(f, f.segs[s].kitTier);
+          return { name: f.name, price: f.segs[s].price, quality: r0(noisy(rng, qual, 0.05)), brand: +f.brand[s].toFixed(1) };
+        });
+      });
+      return out;
+    }
+    if (rid === 'forecast') {
+      const out = {};
+      SEGMENTS.forEach(s => {
+        const m = SEG_META[s];
+        out[s] = [1, 2].map(k => {
+          const qq = w.q + k; const seas = m.season[(qq - 1) % 4];
+          return r0(noisy(rng, m.baseDemand * w.demandScale * Math.pow(m.trend, qq) * seas * (1 + (mods.demand[s] || 0) * 0.5), 0.08));
+        });
+      });
+      return out;
+    }
+    if (rid === 'competitor') {
+      const v = w.teams[target] || w.teams[w.order.find(id => id !== tid)];
+      const kitsHeld = v.kits[1] + v.kits[2] + v.kits[3];
+      return { name: v.name, unitCostEst: r0(noisy(rng, avgUnitCost(v), 0.10)), fgUnits: r0(noisy(rng, sum(SEGMENTS.map(s => v.fg[s].units)), 0.12)), kitsEst: r0(noisy(rng, kitsHeld, 0.15)), lines: v.lines, workersEst: r0(noisy(rng, v.workers, 0.1)), cashBand: v.cash > 1500000 ? 'strong' : v.cash > 500000 ? 'adequate' : 'strained' };
+    }
+    if (rid === 'mystery') {
+      const out = {};
+      SEGMENTS.forEach(s => { out[s] = w.order.filter(id => w.teams[id].segs[s].active).map(id => ({ name: w.teams[id].name, service: +w.teams[id].service[s].toFixed(2) })); });
+      return out;
+    }
+    if (rid === 'supply') {
+      return { utilisation: +w.supplier.util.toFixed(2), spotPrices: { 1: spotKitPrice(w, 1, mods), 2: spotKitPrice(w, 2, mods), 3: spotKitPrice(w, 3, mods) }, outlook: w.supplier.util > 0.95 ? 'Order books full — expect spot prices to rise' : w.supplier.util > 0.75 ? 'Balanced market' : 'Slack capacity — spot buyers hold the cards' };
+    }
+    return null;
+  }
+  function avgUnitCost(f) {
+    const t = f.segs.city.kitTier || 2;
+    return f.kitCostAvg[t] + (f.workers > 0 ? (f.wage / (T.baseProductivity * f.skill)) : 130) + 40;
+  }
+
+  /* ----------------------------------------------------- SANITISATION */
+  function sanitizeDecisions(w, tid, d) {
+    const f = w.teams[tid];
+    const out = defaultDecisions(w, tid);
+    const num = (x, lo, hi, def) => { const v = Number(x); return isFinite(v) ? clamp(v, lo, hi) : def; };
+    SEGMENTS.forEach(s => {
+      const src = (d.segs && d.segs[s]) || {};
+      out.segs[s].active = src.active !== undefined ? !!src.active : f.segs[s].active;
+      out.segs[s].price = r0(num(src.price, SEG_META[s].refPrice * 0.45, SEG_META[s].refPrice * 2.2, f.segs[s].price));
+      out.segs[s].kitTier = [1, 2, 3].includes(src.kitTier) ? src.kitTier : f.segs[s].kitTier;
+      out.production[s] = r0(num(d.production && d.production[s], 0, 40000, 0));
+      out.marketing[s] = w.modules.marketing ? r0(num(d.marketing && d.marketing[s], 0, 2000000, 0)) : 0;
+    });
+    if (w.modules.supply && !d.__autopilot) {
+      [1, 2, 3].forEach(t => out.buyKits.spot[t] = r0(num(d.buyKits && d.buyKits.spot && d.buyKits.spot[t], 0, 30000, 0)));
+      if (d.newContract && d.newContract.qtyPerQ > 0) out.newContract = { tier: [1, 2, 3].includes(d.newContract.tier) ? d.newContract.tier : 2, qtyPerQ: r0(num(d.newContract.qtyPerQ, 50, 20000, 0)) };
+    } else {
+      // auto-procurement before supply module unlocks: buy next quarter's plan at spot
+      const planned = sum(SEGMENTS.map(s => out.production[s]));
+      const tierNeed = { 1: 0, 2: 0, 3: 0 };
+      SEGMENTS.forEach(s => { if (out.segs[s].active) tierNeed[out.segs[s].kitTier] += out.production[s]; });
+      [1, 2, 3].forEach(t => { const have = f.kits[t] + sum(f.kitOrders.filter(o => o.tier === t).map(o => o.qty)); out.buyKits.spot[t] = Math.max(0, r0(tierNeed[t] * 1.05 - have)); });
+      if (planned === 0) out.buyKits.spot = { 1: 0, 2: 0, 3: 0 };
+    }
+    if (w.modules.research) { out.research = Array.isArray(d.research) ? d.research.filter(r => T.researchPrices[r]).slice(0, 5) : []; out.researchTarget = d.researchTarget || null; }
+    const hr = d.hr || {};
+    if (w.modules.hr && !d.__autopilot) {
+      out.hr.hireWorkers = r0(num(hr.hireWorkers, 0, 60, 0));
+      out.hr.fireWorkers = r0(num(hr.fireWorkers, 0, f.workers, 0));
+      out.hr.hireEngineers = r0(num(hr.hireEngineers, 0, 4, 0));
+      out.hr.fireEngineers = r0(num(hr.fireEngineers, 0, f.engineers, 0));
+      out.hr.wage = r0(num(hr.wage, w.marketWage * 0.7, w.marketWage * 1.8, f.wage));
+      out.hr.training = r0(num(hr.training, 0, 1000000, 0));
+      if (hr.poach && hr.poach.target && w.teams[hr.poach.target] && hr.poach.target !== tid) out.hr.poach = { target: hr.poach.target, count: r0(num(hr.poach.count, 1, 6, 1)), premium: num(hr.poach.premium, 0.15, 0.6, 0.2) };
+    } else {
+      // auto-HR before unlock: scale workforce to planned assembly load at market wage
+      const planned = sum(SEGMENTS.map(s => out.production[s] * SEG_META[s].load));
+      const needed = Math.ceil(planned / (T.baseProductivity * f.skill * (0.6 + 0.55 * f.morale)));
+      const gap = needed - f.workers;
+      out.hr.wage = w.marketWage;
+      if (gap > 0) out.hr.hireWorkers = Math.min(gap, 25);
+      else if (gap < -4) out.hr.fireWorkers = Math.min(-gap - 2, 10);
+    }
+    const fin = d.finance || {};
+    out.finance.draw = r0(num(fin.draw, 0, 60000000, 0));
+    out.finance.repay = r0(num(fin.repay, 0, 60000000, 0));
+    out.finance.buyLines = f.receivership ? 0 : r0(num(fin.buyLines, 0, 6, 0));
+    out.finance.sellLines = r0(num(fin.sellLines, 0, Math.max(0, f.lines - 1), 0));
+    if (f.receivership) { SEGMENTS.forEach(s => { out.marketing[s] = Math.min(out.marketing[s], 60000); }); out.hr.wage = Math.min(out.hr.wage, f.wage); }
+    return out;
+  }
+
+  /* ---------------------------------------------------------- B2B TRADE */
+  // offer: {id, from, kind:'kits'|'fg', tier|seg, qty, unitPrice, note}
+  function postTradeOffer(world, tid, offer) {
+    const w = world; w.trades = (w.trades && !Array.isArray(w.trades)) ? w.trades : {}; w.tradeSeq = w.tradeSeq || 1;
+    const f = w.teams[tid];
+    const o = { id: 'tr' + (w.tradeSeq++), from: tid, kind: offer.kind, qty: r0(clamp(offer.qty, 1, 20000)), unitPrice: r0(clamp(offer.unitPrice, 1, 50000)), note: (offer.note || '').slice(0, 90), open: true, q: w.q };
+    if (offer.kind === 'kits') { o.tier = [1, 2, 3].includes(offer.tier) ? offer.tier : 2; if (f.kits[o.tier] < o.qty) return { error: 'Not enough T' + o.tier + ' kits in stock' }; }
+    else { o.seg = SEGMENTS.includes(offer.seg) ? offer.seg : 'city'; if (f.fg[o.seg].units < o.qty) return { error: 'Not enough finished units in stock' }; }
+    w.trades[o.id] = o;
+    return { offer: o };
+  }
+  function acceptTradeOffer(world, buyerId, offerId, qty) {
+    const w = world; const o = w.trades[offerId];
+    if (!o || !o.open) return { error: 'Offer no longer available' };
+    if (o.from === buyerId) return { error: 'Cannot accept your own offer' };
+    const seller = w.teams[o.from]; const buyer = w.teams[buyerId];
+    const take = r0(clamp(qty || o.qty, 1, o.qty));
+    const total = take * o.unitPrice;
+    if (buyer.cash < total) return { error: 'Insufficient cash (€' + r0(total / 1000) + 'k needed)' };
+    if (o.kind === 'kits') {
+      if (seller.kits[o.tier] < take) return { error: 'Seller stock changed' };
+      seller.kits[o.tier] -= take;
+      receiveKits(buyer, o.tier, take, o.unitPrice);
+    } else {
+      const sfg = seller.fg[o.seg]; if (sfg.units < take) return { error: 'Seller stock changed' };
+      const bfg = buyer.fg[o.seg];
+      const nu = bfg.units + take;
+      bfg.cost = (bfg.cost * bfg.units + o.unitPrice * take) / nu;
+      bfg.quality = (bfg.quality * bfg.units + (sfg.quality - 2) * take) / nu; // small rebadge penalty
+      bfg.units = nu; sfg.units -= take;
+    }
+    seller.cash += total; buyer.cash -= total;
+    o.qty -= take; if (o.qty <= 0) o.open = false;
+    const item = o.kind === 'kits' ? ('T' + o.tier + ' kits') : (SEG_META[o.seg].label + ' e-bikes');
+    world.newsAll.push({ q: w.q, type: 'trade', text: buyer.name + ' buys ' + take + ' ' + item + ' from ' + seller.name + ' @ €' + o.unitPrice });
+    return { ok: true, take, total };
+  }
+  function cancelTradeOffer(world, tid, offerId) {
+    const o = world.trades[offerId]; if (o && o.from === tid) o.open = false; return { ok: true };
+  }
+
+  /* --------------------------------------------------------------- BOTS */
+  const BOT_TYPES = ['balanced', 'costLeader', 'premium', 'aggressor'];
+  function botDecisions(world, tid, rng) {
+    const f = world.teams[tid];
+    const type = f.botType || 'balanced';
+    const d = defaultDecisions(world, tid);
+    const prev = world.resultsByQ[world.q - 1];
+    const myPrev = prev ? prev.firms[tid] : null;
+    const conf = {
+      balanced:   { segs: ['city', 'budget', 'sport', 'cargo'], tier: 2, priceMult: 1.0, segPrice: {}, mktQ: 90000, wageMult: 1.0 },
+      costLeader: { segs: ['budget', 'city'], tier: 1, priceMult: 0.94, segPrice: { budget: 0.92, city: 0.93 }, mktQ: 60000, wageMult: 1.0 },
+      premium:    { segs: ['sport', 'cargo', 'city'], tier: 3, priceMult: 1.14, segPrice: { city: 1.07 }, mktQ: 160000, wageMult: 1.1 },
+      aggressor:  { segs: ['city', 'budget', 'sport', 'cargo'], tier: 2, priceMult: 0.96, segPrice: {}, mktQ: 130000, wageMult: 1.05 },
+    }[type];
+    SEGMENTS.forEach(s => {
+      const on = conf.segs.includes(s);
+      d.segs[s].active = on;
+      d.segs[s].kitTier = s === 'budget' ? Math.min(conf.tier, 2) : (type === 'costLeader' && s === 'city' ? 2 : conf.tier);
+      let pm = conf.segPrice[s] || conf.priceMult;
+      if (prev && prev.segs[s]) {
+        const mine = prev.segs[s].firms.find(x => x.tid === tid);
+        if (mine) {
+          if (mine.share < 0.08 && on) pm -= 0.03;
+          if (myPrev && myPrev.ops && (myPrev.ops.stockouts || {})[s] > 50) pm += 0.04;
+        }
+        if (type === 'aggressor') {
+          const leader = prev.segs[s].firms.slice().sort((a, b) => b.share - a.share)[0];
+          if (leader && leader.tid !== tid) pm = Math.min(pm, (leader.price / SEG_META[s].refPrice) - 0.05);
+        }
+      }
+      d.segs[s].price = r0(SEG_META[s].refPrice * clamp(pm + (rng() - 0.5) * 0.02, 0.6, 1.6));
+      d.marketing[s] = on && world.modules.marketing ? r0(conf.mktQ * (0.8 + rng() * 0.5)) : 0;
+      if (on) {
+        const n = Math.max(1, world.order.filter(id => world.teams[id].segs[s].active).length);
+        const m = SEG_META[s];
+        const seasNow = m.season[(world.q - 1) % 4];
+        const seasNext = m.season[world.q % 4];
+        let base;
+        if (myPrev && myPrev.ops && myPrev.ops.demand && myPrev.ops.demand[s] != null) {
+          base = myPrev.ops.demand[s] * (seasNow / m.season[(world.q - 2 + 4) % 4]);
+        } else {
+          base = m.baseDemand * world.demandScale * seasNow / n;
+        }
+        const ambition = type === 'costLeader' ? 1.22 : type === 'aggressor' ? 1.1 : type === 'premium' ? 1.02 : 1.08;
+        d.production[s] = r0(Math.max(0, base * ambition - f.fg[s].units * 0.6));
+      } else d.production[s] = 0;
+    });
+    // capacity mgmt
+    const planned = sum(SEGMENTS.map(s => d.production[s]));
+    const plannedLoadAll = sum(SEGMENTS.map(s => d.production[s] * SEG_META[s].load));
+    const capLines = f.lines * T.unitsPerLine;
+    const moraleF0 = 0.6 + 0.55 * f.morale;
+    const capLab0 = f.workers * T.baseProductivity * f.skill * moraleF0;
+    const capThreshold = type === 'costLeader' ? 0.88 : 0.92;
+    const cashGate = type === 'costLeader' ? 1.6 : 2.0;
+    if (plannedLoadAll > capLines * capThreshold && capLab0 > capLines * 0.9 && f.cash > T.lineCost * cashGate && !f.receivership) d.finance.buyLines = 1;
+    if (f.lines > 2 && capLines > Math.max(plannedLoadAll, capLab0) * 1.75) d.finance.sellLines = 1;
+    // kits (only if supply unlocked; otherwise auto)
+    if (world.modules.supply) {
+      const tierNeed = { 1: 0, 2: 0, 3: 0 };
+      SEGMENTS.forEach(s => { if (d.segs[s].active) tierNeed[d.segs[s].kitTier] += d.production[s]; });
+      [1, 2, 3].forEach(t => {
+        const incoming = sum(f.kitOrders.filter(o => o.tier === t).map(o => o.qty)) + sum(f.contracts.filter(c => c.tier === t).map(c => c.qtyPerQ));
+        d.buyKits.spot[t] = Math.max(0, r0(tierNeed[t] * 1.12 - f.kits[t] - incoming));
+      });
+      const contractProb = type === 'costLeader' ? 1.0 : 0.25;
+      if (world.q > 3 && rng() < contractProb && f.contracts.length === 0) { const mainTier = conf.tier; d.newContract = { tier: mainTier, qtyPerQ: r0(planned * (type === 'costLeader' ? 0.7 : 0.5)) }; d.buyKits.spot[mainTier] = Math.max(0, d.buyKits.spot[mainTier] - d.newContract.qtyPerQ); }
+    }
+    // HR
+    if (world.modules.hr) {
+      const moraleFactor = 0.6 + 0.55 * f.morale;
+      const plannedLoad = sum(SEGMENTS.map(s => d.production[s] * SEG_META[s].load));
+      const needed = Math.ceil(plannedLoad / (T.baseProductivity * f.skill * moraleFactor));
+      const gap = needed - f.workers;
+      d.hr.wage = r0(world.marketWage * conf.wageMult);
+      if (gap > 0) d.hr.hireWorkers = Math.min(gap + 1, 20);
+      else if (gap < -5) d.hr.fireWorkers = Math.min(-gap - 3, 8);
+      d.hr.training = f.cash > 800000 ? (type === 'costLeader' ? 70000 : 40000) : 0;
+      if (type === 'aggressor' && world.q > 9 && rng() < 0.3 && f.cash > 600000) {
+        const victims = world.order.filter(id => id !== tid && world.teams[id].workers > 12);
+        if (victims.length) d.hr.poach = { target: victims[Math.floor(rng() * victims.length)], count: 3, premium: 0.25 };
+      }
+      if (type === 'premium' && f.engineers < 6 && f.cash > 500000) d.hr.hireEngineers = 1;
+    }
+    // research
+    if (world.modules.research && f.cash > 700000 && rng() < 0.5) d.research = ['forecast'];
+    // finance
+    const kitBudget = sum([1, 2, 3].map(t => (d.buyKits.spot[t] || 0) * T.kitTiers[t].cost * 1.2));
+    const projCash = f.cash - kitBudget - (f.workers * f.wage) - 300000;
+    if (projCash < 200000) d.finance.draw = Math.min(2000000, Math.max(600000, -projCash + 400000));
+    else if (f.cash > 3000000 && (f.debt + f.emergencyDebt) > 0) d.finance.repay = Math.min(f.debt + f.emergencyDebt, f.cash - 2400000);
+    if (world.modules.hr === false) d.hr = defaultDecisions(world, tid).hr;
+    return d;
+  }
+
+  /* ---------------------------------------------- BOT TRADE BEHAVIOUR */
+  function botTradeMoves(world, rng) {
+    if (!world.modules.trade) return;
+    const mods = eventMods(world);
+    world.order.forEach(tid => {
+      const f = world.teams[tid]; if (!f.isBot) return;
+      // liquidate kit tiers we no longer build with
+      const tiersInUse = new Set(SEGMENTS.filter(s => f.segs[s].active).map(s => f.segs[s].kitTier));
+      [1, 2, 3].forEach(t => {
+        if (!tiersInUse.has(t) && f.kits[t] > 150) {
+          const already = Object.values(world.trades).some(o => o.open && o.from === tid && o.kind === 'kits' && o.tier === t);
+          if (!already) postTradeOffer(world, tid, { kind: 'kits', tier: t, qty: f.kits[t], unitPrice: r0(T.kitTiers[t].cost * 0.96), note: 'Surplus stock — first come, first served' });
+        }
+      });
+      // opportunistic buying: take offers cheaper than spot for tiers we use
+      Object.values(world.trades).forEach(o => {
+        if (!o.open || o.from === tid || o.kind !== 'kits') return;
+        if (!tiersInUse.has(o.tier)) return;
+        const spot = spotKitPrice(world, o.tier, mods);
+        if (o.unitPrice < spot * 0.97 && f.cash > o.qty * o.unitPrice + 600000 && rng() < 0.7) {
+          acceptTradeOffer(world, tid, o.id, Math.min(o.qty, 1200));
+        }
+      });
+    });
+  }
+
+  /* --------------------------------------------------- FIREBASE REPAIR */
+  // Firebase RTDB drops empty arrays/objects and may coerce {1,2,3}-keyed
+  // objects to sparse arrays. Restore the invariants the engine relies on.
+  function normalizeWorld(w) {
+    if (!w) return w;
+    w.activeEvents = toArr(w.activeEvents); w.pendingEvents = toArr(w.pendingEvents);
+    w.newsAll = toArr(w.newsAll); w.order = toArr(w.order);
+    w.sessionPlan = toArr(w.sessionPlan);
+    w.trades = w.trades && !Array.isArray(w.trades) ? w.trades : {};
+    w.resultsByQ = fixNumMap(w.resultsByQ);
+    w.tradeSeq = w.tradeSeq || 1;
+    w.modules = w.modules || {};
+    w.supplier = w.supplier || { capBase: T.supplierCapPerTeam * (w.order.length || 8), mult: 1, util: 0.6 };
+    w.teams = w.teams || {};
+    Object.keys(w.teams).forEach(tid => {
+      const f = w.teams[tid];
+      f.kitOrders = toArr(f.kitOrders); f.contracts = toArr(f.contracts);
+      f.ebitHist = toArr(f.ebitHist); f.log = toArr(f.log);
+      f.kits = fixTier(f.kits, 0); f.kitCostAvg = fixTier(f.kitCostAvg, T.kitTiers[2].cost);
+      f.research = fixNumMap(f.research);
+      f.brand = f.brand || {}; f.service = f.service || {}; f.fg = f.fg || {}; f.segs = f.segs || {};
+      SEGMENTS.forEach(s => {
+        f.fg[s] = f.fg[s] || { units: 0, cost: 0, quality: 60 };
+        f.brand[s] = f.brand[s] == null ? 1 : f.brand[s];
+        f.service[s] = f.service[s] == null ? T.serviceStart : f.service[s];
+        f.segs[s] = f.segs[s] || { active: false, price: SEG_META[s].refPrice, kitTier: 2, mkt: 0 };
+      });
+      f.cum = f.cum || { revenue: 0, ebit: 0 };
+    });
+    return w;
+    function toArr(x) { if (Array.isArray(x)) return x.filter(v => v != null); if (x && typeof x === 'object') return Object.values(x).filter(v => v != null); return []; }
+    function fixTier(x, def) { const o = { 1: def, 2: def, 3: def }; if (x) [1, 2, 3].forEach(t => { const v = Array.isArray(x) ? x[t] : x[t]; if (v != null && isFinite(v)) o[t] = v; }); return o; }
+    function fixNumMap(x) { const o = {}; if (x && typeof x === 'object') Object.keys(x).forEach(k => { if (x[k] != null) o[k] = x[k]; }); return o; }
+  }
+
+  /* ------------------------------------------------------------- EXPORT */
+  return {
+    T, SEGMENTS, SEG_META, EVENT_LIBRARY, RESEARCH_META, JERSEYS,
+    makeWorld, defaultSessionPlan, defaultDecisions, resolveQuarter, normalizeWorld,
+    postTradeOffer, acceptTradeOffer, cancelTradeOffer,
+    botDecisions, botTradeMoves, BOT_TYPES, spotKitPrice, eventMods, firmQuality, creditLimit,
+    mulberry32, hashStr, clamp,
+  };
+});
+
+</script>
+
+<script type="text/babel" data-presets="react">
+/* ============================================================================
+   SLIPSTREAM — client
+   ========================================================================= */
+const E = SlipstreamEngine;
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+/* ----------------------------------------------------------- FORMATTING */
+const fmt = {
+  eur: v => { const n = Math.round(v || 0); const a = Math.abs(n); if (a >= 1e6) return (n / 1e6).toFixed(2) + 'M'; if (a >= 1e3) return (n / 1e3).toFixed(0) + 'k'; return '' + n; },
+  eur0: v => '€' + fmt.eur(v),
+  num: v => (v == null ? '—' : ('' + Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')),
+  pct: v => Math.round((v || 0) * 100) + '%',
+  signk: v => (v >= 0 ? '+' : '−') + fmt.eur(Math.abs(v)),
+};
+const SEASON_NAMES = ['Winter', 'Spring', 'Summer', 'Autumn'];
+const qLabel = q => 'Q' + q + ' · ' + SEASON_NAMES[(q - 1) % 4] + ' Y' + Math.ceil(q / 4);
+const MODULE_LABELS = { supply: 'Supply chain', trade: 'B2B trading', marketing: 'Marketing', research: 'Market research', hr: 'HR & poaching', financeAdv: 'Advanced finance', endgame: 'Endgame' };
+
+/* ------------------------------------------------------ STORAGE ADAPTERS */
+function makeLocalAdapter() {
+  const KEY = 'slipstream_demo_v1';
+  let state = null;
+  try { state = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { state = null; }
+  const listeners = new Set();
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} listeners.forEach(fn => fn(state)); };
+  return {
+    kind: 'local',
+    hasWorld: () => !!state,
+    createWorld(world) { state = { world, decisions: {} }; save(); return Promise.resolve('DEMO'); },
+    load() { return Promise.resolve(state); },
+    subscribe(fn) { listeners.add(fn); if (state) fn(state); return () => listeners.delete(fn); },
+    submitDecisions(tid, q, dec) { if (!state) return Promise.resolve(); state.decisions[q] = state.decisions[q] || {}; state.decisions[q][tid] = dec; save(); return Promise.resolve(); },
+    getDecisions(q) { return Promise.resolve((state.decisions && state.decisions[q]) || {}); },
+    loadMy(tid, q) { return Promise.resolve((state.decisions && state.decisions[q] && state.decisions[q][tid]) || null); },
+    writeWorld(world) { state.world = world; save(); return Promise.resolve(); },
+    mutateWorld(fn) { const res = fn(state.world); save(); return Promise.resolve(res); },
+    reset() { state = null; try { localStorage.removeItem(KEY); } catch (e) {} listeners.forEach(fn => fn(null)); },
+  };
+}
+
+function makeFirebaseAdapter(code) {
+  const db = firebase.database();
+  const ref = db.ref('slipstream/' + code);
+  return {
+    kind: 'firebase', code,
+    createWorld(world) { return ref.set({ world: JSON.parse(JSON.stringify(world)), decisions: {} }).then(() => code); },
+    load() { return ref.get().then(s => s.val()); },
+    subscribe(fn) { const cb = ref.child('world').on('value', s => fn(s.val() ? { world: s.val() } : null)); return () => ref.child('world').off('value', cb); },
+    subscribeDecisionCount(q, fn) { const r = ref.child('decisions/' + q); const cb = r.on('value', s => fn(s.val() || {})); return () => r.off('value', cb); },
+    submitDecisions(tid, q, dec) { return ref.child('decisions/' + q + '/' + tid).set(JSON.parse(JSON.stringify(dec))); },
+    getDecisions(q) { return ref.child('decisions/' + q).get().then(s => s.val() || {}); },
+    loadMy(tid, q) { return ref.child('decisions/' + q + '/' + tid).get().then(s => s.val() || null); },
+    writeWorld(world) { return ref.child('world').set(JSON.parse(JSON.stringify(world))); },
+    mutateWorld(fn) {
+      // transaction for trade operations — atomic against concurrent accepts
+      let out = null;
+      return ref.child('world').transaction(w => { if (!w) return w; out = fn(w); return w; }).then(() => out);
+    },
+  };
+}
+
+/* --------------------------------------------------------- TINY CHARTS */
+function Spark({ series, w = 260, h = 64, color = 'var(--accent)', zero }) {
+  if (!series || series.length < 2) return <div className="spark-empty">Data builds up from Q2</div>;
+  const min = Math.min(...series, zero != null ? zero : Infinity);
+  const max = Math.max(...series, zero != null ? zero : -Infinity);
+  const span = max - min || 1;
+  const pts = series.map((v, i) => `${(i / (series.length - 1)) * (w - 6) + 3},${h - 4 - ((v - min) / span) * (h - 10)}`).join(' ');
+  const zy = zero != null ? h - 4 - ((zero - min) / span) * (h - 10) : null;
+  return (
+    <svg width={w} height={h} className="spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img">
+      {zy != null && <line x1="0" x2={w} y1={zy} y2={zy} stroke="var(--line)" strokeDasharray="3 3" />}
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------ SHARED WIDGETS */
+function Chip({ color, children, dim }) {
+  return <span className={'chip' + (dim ? ' dim' : '')}><i style={{ background: color }} />{children}</span>;
+}
+function Stat({ label, value, tone }) {
+  return <div className={'stat' + (tone ? ' ' + tone : '')}><div className="stat-v">{value}</div><div className="stat-l">{label}</div></div>;
+}
+function Section({ title, right, children, tight }) {
+  return <section className={'card' + (tight ? ' tight' : '')}><div className="card-head"><h3>{title}</h3>{right}</div>{children}</section>;
+}
+function Num({ value, onChange, step = 1, min = 0, max, width = 110, disabled, suffix }) {
+  return (
+    <span className="numwrap" style={{ width }}>
+      <input type="number" inputMode="numeric" className="num" value={value} step={step} min={min} max={max} disabled={disabled}
+        onChange={e => { const v = e.target.value === '' ? '' : Number(e.target.value); onChange(v === '' ? 0 : v); }} />
+      {suffix && <em>{suffix}</em>}
+    </span>
+  );
+}
+function Toggle({ on, onChange, label, disabled }) {
+  return <button type="button" className={'toggle' + (on ? ' on' : '')} disabled={disabled} onClick={() => onChange(!on)} aria-pressed={on}>{label}</button>;
+}
+
+/* ------------------------------------------------------- PELOTON STRIP */
+function Peloton({ world, meTid }) {
+  const rows = world.order.map(tid => world.teams[tid]).slice().sort((a, b) => b.valuation - a.valuation);
+  const lead = rows[0] ? rows[0].valuation : 0;
+  return (
+    <div className="peloton" role="list" aria-label="Race positions by company value">
+      {rows.map((f, i) => (
+        <div key={f.id} role="listitem" className={'rider' + (meTid === f.id ? ' me' : '') + (f.receivership ? ' rcv' : '')} title={f.name + ' — ' + fmt.eur0(f.valuation)}>
+          <b className="pos">{i + 1}</b>
+          <i className="jersey" style={{ background: f.color }} />
+          <span className="rname">{f.name}</span>
+          <span className="gap">{i === 0 ? fmt.eur0(f.valuation) : '−' + fmt.eur(lead - f.valuation)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ BULLETIN */
+function Bulletin({ items, big }) {
+  if (!items || !items.length) return <div className="empty">No headlines yet. The wire warms up after the first resolved quarter.</div>;
+  return (
+    <div className={'wire' + (big ? ' big' : '')}>
+      {items.slice().reverse().map((n, i) => (
+        <div key={i} className={'wire-item t-' + n.type}>
+          <span className="wire-q">Q{n.q}</span>
+          <span className="wire-text">{n.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- LOBBY */
+function Lobby({ onEnter, firebaseReady }) {
+  const [mode, setMode] = useState('join'); // join | create | demo
+  const [code, setCode] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [nTeams, setNTeams] = useState(8);
+  const [quarters, setQuarters] = useState(15);
+  const [wname, setWname] = useState('');
+
+  const join = async () => {
+    setErr(''); setBusy(true);
+    try {
+      const c = code.trim().toUpperCase();
+      if (!c) { setErr('Enter the world code your instructor shared.'); setBusy(false); return; }
+      const ad = makeFirebaseAdapter(c);
+      const snap = await ad.load();
+      if (!snap || !snap.world) { setErr('No world found under code ' + c + '. Check the code with your instructor.'); setBusy(false); return; }
+      onEnter(ad, snap.world, null);
+    } catch (e) { setErr('Could not reach the game server. Check your connection.'); }
+    setBusy(false);
+  };
+  const create = async () => {
+    setErr(''); setBusy(true);
+    try {
+      const c = (wname.trim() ? wname.trim().replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase() : '') + Math.random().toString(36).slice(2, 6).toUpperCase();
+      const world = E.makeWorld({ nTeams, quartersTotal: quarters, name: wname.trim() || 'SLIPSTREAM', seed: Math.floor(Math.random() * 1e9) });
+      world.order.forEach((tid, i) => { world.teams[tid].joinCode = Math.random().toString(36).slice(2, 7).toUpperCase(); });
+      world.instructorCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const ad = makeFirebaseAdapter(c);
+      await ad.createWorld(world);
+      onEnter(ad, world, { role: 'instructor' });
+    } catch (e) { setErr('Could not create the world. Check your connection and Firebase configuration.'); }
+    setBusy(false);
+  };
+  const demo = () => {
+    const ad = makeLocalAdapter();
+    if (ad.hasWorld()) { ad.load().then(s => onEnter(ad, s.world, { role: 'instructor', demo: true })); return; }
+    const world = E.makeWorld({ nTeams: 8, quartersTotal: 15, name: 'DEMO WORLD', seed: Math.floor(Math.random() * 1e9) });
+    // demo: half the grid are bots so the market feels alive immediately
+    world.order.forEach((tid, i) => { const f = world.teams[tid]; f.joinCode = 'DEMO'; if (i >= 4) { f.isBot = true; f.botType = E.BOT_TYPES[i % 4]; f.name = ['Velo Nord', 'Pedale GmbH', 'Watt & Sons', 'Kettenwerk'][i - 4]; } });
+    world.instructorCode = 'DEMO';
+    ad.createWorld(world).then(() => onEnter(ad, world, { role: 'instructor', demo: true }));
+  };
+
+  return (
+    <div className="lobby">
+      <div className="lobby-hero">
+        <div className="brandmark" aria-hidden="true"><svg viewBox="0 0 64 40" width="72" height="45"><g fill="none" stroke="currentColor" strokeWidth="3"><circle cx="14" cy="27" r="10" /><circle cx="50" cy="27" r="10" /><path d="M14 27 L27 10 H41 L50 27 M27 10 L32 27 H14" strokeLinejoin="round" /></g></svg></div>
+        <h1>SLIPSTREAM</h1>
+        <p className="tag">Velodrom Werke has collapsed. Its market, suppliers and people are up for grabs. Eight firms. Fifteen quarters. One winner.</p>
+      </div>
+      <div className="lobby-cards">
+        <div className={'lobby-card' + (mode === 'join' ? ' active' : '')} onClick={() => setMode('join')}>
+          <h2>Join your team</h2>
+          <p>Enter the world code from your instructor.</p>
+          {mode === 'join' && (
+            <div className="lobby-form">
+              <input className="txt" placeholder="World code, e.g. GDN4X2" value={code} onChange={e => setCode(e.target.value)} onKeyDown={e => e.key === 'Enter' && join()} aria-label="World code" />
+              <button className="btn primary" disabled={busy || !firebaseReady} onClick={join}>{busy ? 'Connecting…' : 'Join world'}</button>
+              {!firebaseReady && <p className="hint warn">Multiplayer needs the Firebase configuration at the top of this file. Use demo mode to explore.</p>}
+            </div>
+          )}
+        </div>
+        <div className={'lobby-card' + (mode === 'create' ? ' active' : '')} onClick={() => setMode('create')}>
+          <h2>Create a world <span className="mini">instructor</span></h2>
+          <p>Set up a new market and get join codes for every team.</p>
+          {mode === 'create' && (
+            <div className="lobby-form">
+              <input className="txt" placeholder="World name (optional)" value={wname} onChange={e => setWname(e.target.value)} aria-label="World name" />
+              <label className="lbl">Teams <Num value={nTeams} onChange={setNTeams} min={2} max={10} width={90} /></label>
+              <label className="lbl">Quarters <Num value={quarters} onChange={setQuarters} min={6} max={20} width={90} /></label>
+              <button className="btn primary" disabled={busy || !firebaseReady} onClick={create}>{busy ? 'Creating…' : 'Create world'}</button>
+              {!firebaseReady && <p className="hint warn">Creating live worlds needs Firebase. Demo mode works without it.</p>}
+            </div>
+          )}
+        </div>
+        <div className={'lobby-card' + (mode === 'demo' ? ' active' : '')} onClick={() => setMode('demo')}>
+          <h2>Demo mode</h2>
+          <p>Run the whole game solo in this browser — you play instructor and any team, four bot firms fill the grid. Nothing to configure.</p>
+          {mode === 'demo' && <div className="lobby-form"><button className="btn primary" onClick={demo}>Start demo</button></div>}
+        </div>
+      </div>
+      {err && <p className="hint warn center">{err}</p>}
+      <p className="lobby-foot">A business simulation for the classroom · production, supply, marketing, HR and finance in one interdependent market</p>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------- ROLE PICKER */
+function RolePicker({ world, onPick }) {
+  const [tid, setTid] = useState('');
+  const [tcode, setTcode] = useState('');
+  const [icode, setIcode] = useState('');
+  const [err, setErr] = useState('');
+  const humanTeams = world.order.filter(id => !world.teams[id].isBot);
+  return (
+    <div className="lobby">
+      <div className="lobby-hero small"><h1>{world.name}</h1><p className="tag">{qLabel(Math.min(world.q, world.quartersTotal))} · {world.order.length} firms</p></div>
+      <div className="lobby-cards">
+        <div className="lobby-card active">
+          <h2>I'm on a team</h2>
+          <div className="lobby-form">
+            <select className="txt" value={tid} onChange={e => setTid(e.target.value)} aria-label="Choose your team">
+              <option value="">Choose your team…</option>
+              {humanTeams.map(id => <option key={id} value={id}>{world.teams[id].name}</option>)}
+            </select>
+            <input className="txt" placeholder="Team code" value={tcode} onChange={e => setTcode(e.target.value)} aria-label="Team code" />
+            <button className="btn primary" onClick={() => {
+              if (!tid) { setErr('Pick your team.'); return; }
+              const f = world.teams[tid];
+              if ((f.joinCode || '').toUpperCase() !== tcode.trim().toUpperCase()) { setErr('That team code is not right — ask your instructor.'); return; }
+              onPick({ role: 'team', tid });
+            }}>Enter boardroom</button>
+          </div>
+        </div>
+        <div className="lobby-card active">
+          <h2>I'm the instructor</h2>
+          <div className="lobby-form">
+            <input className="txt" placeholder="Instructor code" value={icode} onChange={e => setIcode(e.target.value)} aria-label="Instructor code" />
+            <button className="btn" onClick={() => {
+              if ((world.instructorCode || '').toUpperCase() !== icode.trim().toUpperCase()) { setErr('Wrong instructor code.'); return; }
+              onPick({ role: 'instructor' });
+            }}>Open console</button>
+          </div>
+        </div>
+      </div>
+      {err && <p className="hint warn center">{err}</p>}
+    </div>
+  );
+}
+
+
+/* ------------------------------------------------------- TEAM DASHBOARD */
+function useDraft(world, tid, adapter) {
+  const [draft, setDraft] = useState(null);
+  const [submittedAt, setSubmittedAt] = useState(null);
+  const qRef = useRef(null);
+  useEffect(() => {
+    if (!world || qRef.current === world.q) return;
+    qRef.current = world.q;
+    setSubmittedAt(null);
+    const base = E.defaultDecisions(world, tid);
+    const my = adapter.loadMy ? adapter.loadMy(tid, world.q) : Promise.resolve(null);
+    my.then(prev => { if (prev) { setDraft(deepMerge(base, prev)); setSubmittedAt('earlier'); } else setDraft(base); });
+  }, [world && world.q, tid]);
+  return [draft, setDraft, submittedAt, setSubmittedAt];
+}
+function deepMerge(a, b) { const out = JSON.parse(JSON.stringify(a)); (function m(x, y) { Object.keys(y || {}).forEach(k => { if (y[k] && typeof y[k] === 'object' && !Array.isArray(y[k]) && x[k]) m(x[k], y[k]); else x[k] = y[k]; }); })(out, b); return out; }
+
+function unitEconomics(world, f, seg, tier, price) {
+  const mods = E.eventMods(world);
+  const kitC = f.kits[tier] > 0 ? f.kitCostAvg[tier] : E.spotKitPrice(world, tier, mods);
+  const moraleF = 0.6 + 0.55 * f.morale;
+  const capLab = Math.max(1, f.workers * E.T.baseProductivity * f.skill * moraleF);
+  const labour = (f.workers * f.wage) / capLab * 0.92 * E.SEG_META[seg].load;
+  const cost = kitC + labour + E.SEG_META[seg].parts + 40;
+  return { kitC: Math.round(kitC), labour: Math.round(labour), parts: E.SEG_META[seg].parts, cost: Math.round(cost), margin: Math.round(price - cost), marginPct: price > 0 ? (price - cost) / price : 0 };
+}
+
+function TeamApp({ world, tid, adapter, demoBar }) {
+  const f = world.teams[tid];
+  const [tab, setTab] = useState('market');
+  const [draft, setDraft, submittedAt, setSubmittedAt] = useDraft(world, tid, adapter);
+  const [flash, setFlash] = useState('');
+  const prevQ = useRef(world.q);
+  useEffect(() => { if (world.q !== prevQ.current) { prevQ.current = world.q; setFlash('Quarter resolved — check the wire and your reports'); setTab('market'); const t = setTimeout(() => setFlash(''), 6000); return () => clearTimeout(t); } }, [world.q]);
+
+  const unlocked = world.modules;
+  const tabs = [
+    ['market', 'Market'],
+    ['decide', 'Decisions'],
+    unlocked.trade && ['trade', 'Trade floor'],
+    ['reports', 'Reports'],
+    unlocked.research && ['research', 'Research'],
+    ['bank', 'Bank'],
+  ].filter(Boolean);
+
+  const submit = async () => {
+    await adapter.submitDecisions(tid, world.q, draft);
+    setSubmittedAt('now');
+  };
+
+  const lastR = world.resultsByQ[world.q - 1];
+  const myLast = lastR ? lastR.firms[tid] : null;
+
+  return (
+    <div className="app">
+      {demoBar}
+      <header className="topbar">
+        <div className="brand"><i className="jersey big" style={{ background: f.color }} /><div><b>{f.name}</b><span>{world.name}</span></div></div>
+        <div className="phase">
+          <b>{world.finished ? 'FINAL' : qLabel(world.q)}</b>
+          <span>{world.finished ? 'Season over — AGM time' : world.roundOpen ? 'Round open — file your decisions' : 'Round closed'}</span>
+        </div>
+        <div className="topstats">
+          <Stat label="Cash" value={fmt.eur0(f.cash)} tone={f.cash < 300000 ? 'warn' : ''} />
+          <Stat label="Company value" value={fmt.eur0(f.valuation)} />
+          <Stat label="Rating" value={f.rating} tone={'rating-' + f.rating} />
+        </div>
+      </header>
+      <Peloton world={world} meTid={tid} />
+      {f.receivership && <div className="banner warn">In receivership since Q{f.receivership.sinceQ}. The bank caps marketing at €60k per segment, freezes wages, blocks new lines and sweeps half of spare cash. Restore equity above {fmt.eur0(E.T.receiverExitEquity * E.T.startCash)} for two straight quarters to exit.</div>}
+      {flash && <div className="banner ok">{flash}</div>}
+      <nav className="tabs" role="tablist">
+        {tabs.map(([k, label]) => <button key={k} role="tab" aria-selected={tab === k} className={'tab' + (tab === k ? ' on' : '')} onClick={() => setTab(k)}>{label}</button>)}
+      </nav>
+      <main className="content">
+        {tab === 'market' && <MarketTab world={world} tid={tid} />}
+        {tab === 'decide' && draft && <DecideTab world={world} tid={tid} draft={draft} setDraft={setDraft} submit={submit} submittedAt={submittedAt} />}
+        {tab === 'trade' && <TradeTab world={world} tid={tid} adapter={adapter} />}
+        {tab === 'reports' && <ReportsTab world={world} tid={tid} />}
+        {tab === 'research' && <ResearchTab world={world} tid={tid} />}
+        {tab === 'bank' && <BankTab world={world} tid={tid} myLast={myLast} />}
+      </main>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- MARKET */
+function MarketTab({ world, tid }) {
+  const lastQ = world.q - 1;
+  const r = world.resultsByQ[lastQ];
+  return (
+    <div className="grid2">
+      <Section title="The wire" right={<span className="mini">{world.activeEvents && world.activeEvents.length ? world.activeEvents.map(e => e.name).join(' · ') : 'No live events'}</span>}>
+        <Bulletin items={world.newsAll.slice(-40)} />
+      </Section>
+      <Section title={r ? 'Market results — ' + qLabel(lastQ) : 'Market results'}>
+        {!r && <div className="empty">The first quarter has not been resolved yet. File decisions and wait for the instructor to run the market.</div>}
+        {r && E.SEGMENTS.map(s => (
+          <div key={s} className="segblock">
+            <div className="segline"><b>{E.SEG_META[s].label}</b><span className="mini">demand {fmt.num(r.segs[s].demand)} · sold {fmt.num(r.segs[s].totalSold)} · avg price €{fmt.num(r.segs[s].avgPrice)}</span></div>
+            <div className="sharebar" role="img" aria-label={'Market shares in ' + E.SEG_META[s].label}>
+              {r.segs[s].firms.filter(x => x.share > 0.005).map(x => (
+                <i key={x.tid} style={{ width: (x.share * 100) + '%', background: world.teams[x.tid].color }} title={world.teams[x.tid].name + ' ' + Math.round(x.share * 100) + '% @ €' + fmt.num(x.price)} className={x.tid === tid ? 'mine' : ''} />
+              ))}
+            </div>
+            <div className="pricerow">{r.segs[s].firms.map(x => <span key={x.tid} className={'pricechip' + (x.tid === tid ? ' mine' : '')}><i style={{ background: world.teams[x.tid].color }} />€{fmt.num(x.price)}</span>)}</div>
+          </div>
+        ))}
+        <p className="mini foot">Public information: list prices and realised shares. Everything else is somebody's secret — or a research report away.</p>
+      </Section>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------- DECISIONS */
+function DecideTab({ world, tid, draft, setDraft, submit, submittedAt }) {
+  const f = world.teams[tid];
+  const mods = E.eventMods(world);
+  const set = (path, v) => { const d = JSON.parse(JSON.stringify(draft)); let o = d; const ks = path.split('.'); for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]]; o[ks[ks.length - 1]] = v; setDraft(d); };
+
+  const moraleF = 0.6 + 0.55 * f.morale;
+  const capLines = f.lines * E.T.unitsPerLine;
+  const capLab = Math.floor(f.workers * E.T.baseProductivity * f.skill * moraleF);
+  const plannedLoad = E.SEGMENTS.reduce((a, s) => a + (draft.segs[s].active ? (draft.production[s] || 0) * E.SEG_META[s].load : 0), 0);
+  const kitNeed = { 1: 0, 2: 0, 3: 0 };
+  E.SEGMENTS.forEach(s => { if (draft.segs[s].active) kitNeed[draft.segs[s].kitTier] += draft.production[s] || 0; });
+  const kitIncoming = t => f.kitOrders.filter(o => o.tier === t).reduce((a, o) => a + o.qty, 0) + f.contracts.filter(c => c.tier === t).reduce((a, c) => a + c.qtyPerQ, 0);
+
+  const spendPlan = E.SEGMENTS.reduce((a, s) => a + (world.modules.marketing ? draft.marketing[s] || 0 : 0), 0)
+    + [1, 2, 3].reduce((a, t) => a + (draft.buyKits.spot[t] || 0) * E.spotKitPrice(world, t, mods, draft.buyKits.spot[t] || 0), 0)
+    + (draft.finance.buyLines || 0) * E.T.lineCost + (draft.hr.training || 0);
+
+  return (
+    <div>
+      <div className="capstrip">
+        <Stat label="Line capacity" value={fmt.num(capLines)} />
+        <Stat label="Labour capacity" value={fmt.num(capLab)} tone={plannedLoad > capLab ? 'warn' : ''} />
+        <Stat label="Planned load" value={fmt.num(Math.round(plannedLoad))} tone={plannedLoad > Math.min(capLab, capLines) ? 'warn' : ''} />
+        <Stat label="Cash now" value={fmt.eur0(f.cash)} />
+        <Stat label="Planned outlays" value={fmt.eur0(spendPlan)} tone={spendPlan > f.cash ? 'warn' : ''} />
+      </div>
+      {plannedLoad > Math.min(capLab, capLines) && <div className="banner warn">Your plan exceeds capacity — production will be cut proportionally at the {capLines <= capLab ? 'assembly lines' : 'workforce'}.</div>}
+
+      <Section title="Products, prices and production">
+        <div className="segcards">
+          {E.SEGMENTS.map(s => {
+            const sd = draft.segs[s];
+            const ue = unitEconomics(world, f, s, sd.kitTier, sd.price);
+            const have = f.kits[sd.kitTier];
+            return (
+              <div key={s} className={'segcard' + (sd.active ? '' : ' off')}>
+                <div className="segcard-head">
+                  <b>{E.SEG_META[s].label}</b>
+                  <Toggle on={sd.active} onChange={v => set('segs.' + s + '.active', v)} label={sd.active ? 'In market' : 'Not offered'} />
+                </div>
+                {sd.active && <div className="segcard-body">
+                  <label className="lbl">List price € <Num value={sd.price} onChange={v => set('segs.' + s + '.price', v)} step={10} width={100} /></label>
+                  <label className="lbl">Component kit
+                    <select className="sel" value={sd.kitTier} onChange={e => set('segs.' + s + '.kitTier', Number(e.target.value))}>
+                      {[1, 2, 3].map(t => <option key={t} value={t}>T{t} · quality {E.T.kitTiers[t].quality}</option>)}
+                    </select>
+                  </label>
+                  <label className="lbl">Build this quarter <Num value={draft.production[s]} onChange={v => set('production.' + s, v)} step={10} width={100} /></label>
+                  <div className="ue">
+                    <span>Unit cost ≈ €{fmt.num(ue.cost)} <em>(kit {fmt.num(ue.kitC)} + labour {fmt.num(ue.labour)} + parts {fmt.num(ue.parts + 40)})</em></span>
+                    <span className={ue.margin < 0 ? 'neg' : 'pos'}>Margin ≈ €{fmt.num(ue.margin)} ({Math.round(ue.marginPct * 100)}%)</span>
+                    <span className="mini">In stock: {fmt.num(f.fg[s].units)} finished · T{sd.kitTier} kits: {fmt.num(have)}{kitNeed[sd.kitTier] > have ? ' — short ' + fmt.num(kitNeed[sd.kitTier] - have) : ''}</span>
+                    {world.modules.marketing && <label className="lbl">Marketing € <Num value={draft.marketing[s]} onChange={v => set('marketing.' + s, v)} step={10000} width={110} /></label>}
+                  </div>
+                </div>}
+              </div>
+            );
+          })}
+        </div>
+        <p className="mini foot">Reference prices buyers anchor on: {E.SEGMENTS.map(s => E.SEG_META[s].label + ' €' + fmt.num(E.SEG_META[s].refPrice)).join(' · ')}. Ref price ≠ right price.</p>
+      </Section>
+
+      <Section title="Components" right={<span className="mini">supplier utilisation {Math.round(world.supplier.util * 100)}%</span>}>
+        {!world.modules.supply && <p className="autopilot-note">Procurement runs automatically for now: purchasing buys next quarter's plan at spot prices. You take the wheel when the supply chain module unlocks.</p>}
+        {world.modules.supply && <div className="supplyrow">
+          <div>
+            <h4>Spot orders <span className="mini">paid now, delivered next quarter</span></h4>
+            {[1, 2, 3].map(t => (
+              <label key={t} className="lbl">T{t} @ €{fmt.num(E.spotKitPrice(world, t, mods, draft.buyKits.spot[t] || 0))}
+                <Num value={draft.buyKits.spot[t]} onChange={v => set('buyKits.spot.' + t, v)} step={50} width={100} />
+                <em className="mini">stock {fmt.num(f.kits[t])} · incoming {fmt.num(kitIncoming(t))}</em>
+              </label>
+            ))}
+            <p className="mini">Bulk orders earn up to 3.5% off. Spot prices move with industry demand for kits.</p>
+          </div>
+          <div>
+            <h4>Supply contract <span className="mini">3 quarters, locked price ≈ 7% under spot, volume discounts to 6%</span></h4>
+            {f.contracts.length > 0 && f.contracts.map((c, i) => <p key={i} className="mini">Active: {fmt.num(c.qtyPerQ)} T{c.tier}/q @ €{fmt.num(c.unitPrice)} — {c.remaining} deliveries left (paid on delivery)</p>)}
+            <label className="lbl">Tier
+              <select className="sel" value={(draft.newContract && draft.newContract.tier) || 2} onChange={e => set('newContract', { tier: Number(e.target.value), qtyPerQ: (draft.newContract && draft.newContract.qtyPerQ) || 0 })}>
+                {[1, 2, 3].map(t => <option key={t} value={t}>T{t}</option>)}
+              </select>
+            </label>
+            <label className="lbl">Kits per quarter <Num value={(draft.newContract && draft.newContract.qtyPerQ) || 0} onChange={v => set('newContract', { tier: (draft.newContract && draft.newContract.tier) || 2, qtyPerQ: v })} step={50} width={100} /></label>
+            <p className="mini">Contracts shield you from shortages and spot spikes — and commit you if demand turns.</p>
+          </div>
+        </div>}
+      </Section>
+
+      <Section title="People">
+        {!world.modules.hr && <p className="autopilot-note">HR runs automatically for now: the firm hires and releases at the market wage to match your production plan. Full control — wages, training, poaching — unlocks with the HR module.</p>}
+        {world.modules.hr && <HRBlock world={world} f={f} draft={draft} set={set} />}
+        <p className="mini foot">Workforce {f.workers} assembly + {f.engineers} engineering · skill {f.skill.toFixed(2)} · morale {Math.round(f.morale * 100)}% · your wage €{fmt.num(f.wage)}/q vs market €{fmt.num(world.marketWage)} · labour pool ~{fmt.num(world.labourPool)} people</p>
+      </Section>
+
+      <Section title="Finance">
+        <div className="finrow">
+          <label className="lbl">Draw credit € <Num value={draft.finance.draw} onChange={v => set('finance.draw', v)} step={50000} width={120} /></label>
+          <label className="lbl">Repay € <Num value={draft.finance.repay} onChange={v => set('finance.repay', v)} step={50000} width={120} /></label>
+          <label className="lbl">Buy lines <Num value={draft.finance.buyLines} onChange={v => set('finance.buyLines', v)} max={6} width={80} /> <em className="mini">€{fmt.eur(E.T.lineCost)} each, online next quarter</em></label>
+          <label className="lbl">Sell lines <Num value={draft.finance.sellLines} onChange={v => set('finance.sellLines', v)} max={Math.max(0, f.lines - 1)} width={80} /> <em className="mini">€{fmt.eur(E.T.lineSalvage)} salvage</em></label>
+        </div>
+        <p className="mini">Credit limit {fmt.eur0(E.creditLimit(f))} at rating {f.rating} ({(((E.T.interest[f.rating] || 0.03) + (world.rateBump || 0)) * 400).toFixed(1)}% p.a.). Debt {fmt.eur0(f.debt)}{f.emergencyDebt > 0 ? ' + emergency ' + fmt.eur0(f.emergencyDebt) : ''}.</p>
+      </Section>
+
+      {world.modules.research && <Section title="Market research" right={<span className="mini">delivered with this quarter's results</span>}>
+        <div className="researchgrid">
+          {Object.keys(E.RESEARCH_META).map(rid => {
+            const on = draft.research.includes(rid);
+            return <button key={rid} className={'research' + (on ? ' on' : '')} onClick={() => set('research', on ? draft.research.filter(x => x !== rid) : draft.research.concat(rid))}>
+              <b>{E.RESEARCH_META[rid].label}</b><span>{E.RESEARCH_META[rid].desc}</span><em>€{fmt.eur(E.T.researchPrices[rid])}</em>
+            </button>;
+          })}
+        </div>
+        {draft.research.includes('competitor') && <label className="lbl">Teardown target
+          <select className="sel" value={draft.researchTarget || ''} onChange={e => set('researchTarget', e.target.value)}>
+            <option value="">Pick a rival…</option>
+            {world.order.filter(id => id !== tid).map(id => <option key={id} value={id}>{world.teams[id].name}</option>)}
+          </select>
+        </label>}
+      </Section>}
+
+      <div className="submitbar">
+        <div>{submittedAt ? <span className="ok">✓ Decisions filed{submittedAt === 'now' ? '' : ' earlier'} — you can revise until the round closes.</span> : <span>Nothing filed yet for {qLabel(world.q)}.</span>}</div>
+        <button className="btn primary big" disabled={!world.roundOpen || world.finished} onClick={submit}>{submittedAt ? 'Refile decisions' : 'File decisions for ' + qLabel(world.q)}</button>
+      </div>
+    </div>
+  );
+}
+
+function HRBlock({ world, f, draft, set }) {
+  return (
+    <div className="finrow wrap">
+      <label className="lbl">Hire workers <Num value={draft.hr.hireWorkers} onChange={v => set('hr.hireWorkers', v)} max={60} width={80} /></label>
+      <label className="lbl">Release workers <Num value={draft.hr.fireWorkers} onChange={v => set('hr.fireWorkers', v)} max={f.workers} width={80} /></label>
+      <label className="lbl">Hire engineers <Num value={draft.hr.hireEngineers} onChange={v => set('hr.hireEngineers', v)} max={4} width={80} /> <em className="mini">max 2/q arrive</em></label>
+      <label className="lbl">Quarterly wage € <Num value={draft.hr.wage} onChange={v => set('hr.wage', v)} step={100} width={100} /></label>
+      <label className="lbl">Training budget € <Num value={draft.hr.training} onChange={v => set('hr.training', v)} step={10000} width={110} /></label>
+      <div className="poach">
+        <b>Poach a rival's crew</b>
+        <select className="sel" value={(draft.hr.poach && draft.hr.poach.target) || ''} onChange={e => set('hr.poach', e.target.value ? { target: e.target.value, count: (draft.hr.poach && draft.hr.poach.count) || 2, premium: (draft.hr.poach && draft.hr.poach.premium) || 0.2 } : null)}>
+          <option value="">No raid this quarter</option>
+          {world.order.filter(id => id !== f.id).map(id => <option key={id} value={id}>{world.teams[id].name}</option>)}
+        </select>
+        {draft.hr.poach && <span className="poachrow">
+          <label className="lbl">People <Num value={draft.hr.poach.count} onChange={v => set('hr.poach.count', v)} min={1} max={6} width={70} /></label>
+          <label className="lbl">Signing premium <Num value={Math.round(draft.hr.poach.premium * 100)} onChange={v => set('hr.poach.premium', v / 100)} min={15} max={60} width={70} suffix="%" /> <em className="mini">of annual wage, per hire</em></label>
+        </span>}
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- TRADE */
+function TradeTab({ world, tid, adapter }) {
+  const f = world.teams[tid];
+  const [kind, setKind] = useState('kits');
+  const [tier, setTier] = useState(2);
+  const [seg, setSeg] = useState('city');
+  const [qty, setQty] = useState(100);
+  const [price, setPrice] = useState(1000);
+  const [note, setNote] = useState('');
+  const [msg, setMsg] = useState(null);
+  const offers = Object.values(world.trades || {}).filter(o => o.open);
+
+  const post = async () => {
+    setMsg(null);
+    const res = await adapter.mutateWorld(w => E.postTradeOffer(w, tid, { kind, tier, seg, qty, unitPrice: price, note }));
+    setMsg(res && res.error ? { warn: res.error } : { ok: 'Offer posted to the floor.' });
+  };
+  const accept = async (oid, q) => {
+    setMsg(null);
+    const res = await adapter.mutateWorld(w => E.acceptTradeOffer(w, tid, oid, q));
+    setMsg(res && res.error ? { warn: res.error } : { ok: 'Deal done: ' + res.take + ' units for ' + fmt.eur0(res.total) + '.' });
+  };
+  const cancel = async oid => { await adapter.mutateWorld(w => E.cancelTradeOffer(w, tid, oid)); };
+
+  return (
+    <div className="grid2">
+      <Section title="Post an offer" right={<span className="mini">deals settle instantly, cash on the barrel</span>}>
+        <div className="finrow wrap">
+          <label className="lbl">Selling
+            <select className="sel" value={kind} onChange={e => setKind(e.target.value)}>
+              <option value="kits">Component kits</option>
+              <option value="fg">Finished e-bikes</option>
+            </select>
+          </label>
+          {kind === 'kits' ? (
+            <label className="lbl">Tier <select className="sel" value={tier} onChange={e => setTier(Number(e.target.value))}>{[1, 2, 3].map(t => <option key={t} value={t}>T{t} (stock {f.kits[t]})</option>)}</select></label>
+          ) : (
+            <label className="lbl">Segment <select className="sel" value={seg} onChange={e => setSeg(e.target.value)}>{E.SEGMENTS.map(s => <option key={s} value={s}>{E.SEG_META[s].label} (stock {f.fg[s].units})</option>)}</select></label>
+          )}
+          <label className="lbl">Quantity <Num value={qty} onChange={setQty} width={90} /></label>
+          <label className="lbl">Unit price € <Num value={price} onChange={setPrice} step={10} width={100} /></label>
+          <label className="lbl grow">Pitch <input className="txt" maxLength={90} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Surplus T2, quick sale before the shortage bites" /></label>
+          <button className="btn primary" onClick={post}>Post to floor</button>
+        </div>
+        <p className="mini">Rebadged bikes carry the seller's quality (minus a little) — buying cheap units to cover a stockout beats empty shelves.</p>
+      </Section>
+      <Section title={'Trade floor (' + offers.length + ' open)'}>
+        {msg && <div className={'banner ' + (msg.warn ? 'warn' : 'ok')}>{msg.warn || msg.ok}</div>}
+        {!offers.length && <div className="empty">No open offers. Post one — or work the room and make someone post theirs.</div>}
+        {offers.map(o => (
+          <div key={o.id} className="offer">
+            <Chip color={world.teams[o.from].color}>{world.teams[o.from].name}</Chip>
+            <b>{o.qty} × {o.kind === 'kits' ? 'T' + o.tier + ' kits' : E.SEG_META[o.seg].label + ' e-bikes'}</b>
+            <span>@ €{fmt.num(o.unitPrice)}</span>
+            {o.note && <em className="mini">"{o.note}"</em>}
+            {o.from === tid
+              ? <button className="btn small" onClick={() => cancel(o.id)}>Withdraw</button>
+              : <AcceptBox o={o} onAccept={accept} />}
+          </div>
+        ))}
+      </Section>
+    </div>
+  );
+}
+function AcceptBox({ o, onAccept }) {
+  const [q, setQ] = useState(o.qty);
+  useEffect(() => setQ(o.qty), [o.qty]);
+  return <span className="acceptbox"><Num value={q} onChange={setQ} min={1} max={o.qty} width={80} /><button className="btn small primary" onClick={() => onAccept(o.id, q)}>Buy</button></span>;
+}
+
+/* ------------------------------------------------------------- REPORTS */
+function ReportsTab({ world, tid }) {
+  const qs = Object.keys(world.resultsByQ || {}).filter(k => world.resultsByQ[k] && world.resultsByQ[k].firms && world.resultsByQ[k].firms[tid]).map(Number).sort((a, b) => a - b);
+  const [q, setQ] = useState(qs[qs.length - 1] || null);
+  useEffect(() => { const latest = qs[qs.length - 1]; if (latest && q !== latest) setQ(latest); }, [world.q]);
+  if (!qs.length) return <div className="empty">Your first set of statements arrives once Q1 is resolved.</div>;
+  const r = world.resultsByQ[q].firms[tid];
+  const hist = qs.map(k => world.resultsByQ[k].firms[tid]);
+  const P = r.pnl, B = r.bs;
+  const row = (l, v, cls) => <tr className={cls}><td>{l}</td><td className="r">{fmt.num(v)}</td></tr>;
+  return (
+    <div>
+      <div className="reporthead">
+        <label className="lbl">Quarter <select className="sel" value={q} onChange={e => setQ(Number(e.target.value))}>{qs.map(k => <option key={k} value={k}>{qLabel(k)}</option>)}</select></label>
+        <div className="sparks">
+          <div><span className="mini">Company value</span><Spark series={hist.map(x => x.valuation)} /></div>
+          <div><span className="mini">Revenue</span><Spark series={hist.map(x => x.pnl.revenue)} /></div>
+          <div><span className="mini">EBIT</span><Spark series={hist.map(x => x.pnl.ebit)} zero={0} color="var(--ok)" /></div>
+        </div>
+      </div>
+      <div className="grid3">
+        <Section title="Profit & loss (€)" tight>
+          <table className="fin"><tbody>
+            {row('Revenue', P.revenue)}
+            {row('Cost of goods sold', -P.cogs)}
+            {row('Gross profit', P.gross, 'strong')}
+            {row('Unabsorbed labour & engineering', -P.wages)}
+            {row('Hiring, severance & raids', -P.hiring)}
+            {row('Marketing', -P.marketing)}
+            {row('Research', -P.research)}
+            {row('Training', -P.training)}
+            {row('Inventory holding', -P.holding)}
+            {row('Fixed & administrative', -P.fixed)}
+            {row('EBITDA', P.ebitda, 'strong')}
+            {row('Depreciation', -P.depr)}
+            {row('EBIT', P.ebit, 'strong')}
+            {row('Interest', -P.interest)}
+            {row('Profit before tax', P.pbt, 'total')}
+          </tbody></table>
+        </Section>
+        <Section title="Balance sheet (€)" tight>
+          <table className="fin"><tbody>
+            {row('Cash', B.cash)}
+            {row('Component kits', B.kits)}
+            {row('Kits on order', B.onOrder)}
+            {row('Finished goods', B.fg)}
+            {row('Plant & equipment', B.ppe)}
+            {row('Total assets', B.assets, 'strong')}
+            {row('Credit line', -B.debt)}
+            {row('Emergency facility', -B.emergencyDebt)}
+            {row('Equity', B.equity, 'total')}
+          </tbody></table>
+        </Section>
+        <Section title="Operations" tight>
+          <table className="fin"><tbody>
+            {E.SEGMENTS.map(s => <tr key={s}><td>{E.SEG_META[s].label}</td><td className="r">built {fmt.num(r.ops.produced[s] || 0)} · sold {fmt.num(r.ops.sold[s] || 0)}{r.ops.stockouts[s] ? <span className="neg"> · missed {fmt.num(r.ops.stockouts[s])}</span> : null}</td></tr>)}
+            {row('Assembly lines', r.ops.lines)}
+            {row('Workers / engineers', r.ops.workers + ' / ' + r.ops.engineers)}
+            <tr><td>Skill / morale</td><td className="r">{r.ops.skill} / {Math.round(r.ops.morale * 100)}%</td></tr>
+            <tr><td>Kits in stock</td><td className="r">T1 {fmt.num(r.ops.kits[1])} · T2 {fmt.num(r.ops.kits[2])} · T3 {fmt.num(r.ops.kits[3])}</td></tr>
+          </tbody></table>
+          {r.notes && r.notes.length > 0 && <div className="notes">{r.notes.map((n, i) => <p key={i} className="mini">— {n}</p>)}</div>}
+        </Section>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ RESEARCH */
+function ResearchTab({ world, tid }) {
+  const f = world.teams[tid];
+  const qs = Object.keys(f.research || {}).filter(q => f.research[q]).map(Number).sort((a, b) => b - a);
+  if (!qs.length) return <div className="empty">No reports bought yet. Order research on the Decisions tab — knowing beats guessing, if the price is right.</div>;
+  return (
+    <div>
+      {qs.map(q => (
+        <Section key={q} title={'Delivered with ' + qLabel(q) + ' results'}>
+          {Object.entries(f.research[q]).map(([rid, data]) => <ResearchReport key={rid} rid={rid} data={data} />)}
+        </Section>
+      ))}
+    </div>
+  );
+}
+function ResearchReport({ rid, data }) {
+  if (!data) return null;
+  if (rid === 'perception') return (
+    <div className="rr"><h4>{E.RESEARCH_META[rid].label}</h4>
+      {E.SEGMENTS.map(s => data[s] && data[s].length ? <div key={s}><b className="mini">{E.SEG_META[s].label}</b>
+        <table className="fin"><tbody>{data[s].map((x, i) => <tr key={i}><td>{x.name}</td><td className="r">€{fmt.num(x.price)} · quality {x.quality} · brand {x.brand}</td></tr>)}</tbody></table>
+      </div> : null)}
+    </div>
+  );
+  if (rid === 'forecast') return (
+    <div className="rr"><h4>{E.RESEARCH_META[rid].label}</h4>
+      <table className="fin"><tbody>{E.SEGMENTS.map(s => <tr key={s}><td>{E.SEG_META[s].label}</td><td className="r">{fmt.num(data[s][0])} then {fmt.num(data[s][1])} units</td></tr>)}</tbody></table>
+    </div>
+  );
+  if (rid === 'competitor') return (
+    <div className="rr"><h4>Teardown: {data.name}</h4>
+      <table className="fin"><tbody>
+        <tr><td>Estimated unit cost</td><td className="r">€{fmt.num(data.unitCostEst)}</td></tr>
+        <tr><td>Finished stock</td><td className="r">≈{fmt.num(data.fgUnits)} units</td></tr>
+        <tr><td>Kits held</td><td className="r">≈{fmt.num(data.kitsEst)}</td></tr>
+        <tr><td>Lines / workers</td><td className="r">{data.lines} / ≈{fmt.num(data.workersEst)}</td></tr>
+        <tr><td>War chest</td><td className="r">{data.cashBand}</td></tr>
+      </tbody></table>
+    </div>
+  );
+  if (rid === 'mystery') return (
+    <div className="rr"><h4>{E.RESEARCH_META[rid].label}</h4>
+      {E.SEGMENTS.map(s => data[s] && data[s].length ? <p key={s} className="mini"><b>{E.SEG_META[s].label}:</b> {data[s].map(x => x.name + ' ' + Math.round(x.service * 100) + '%').join(' · ')}</p> : null)}
+    </div>
+  );
+  if (rid === 'supply') return (
+    <div className="rr"><h4>{E.RESEARCH_META[rid].label}</h4>
+      <p className="mini">Utilisation {Math.round(data.utilisation * 100)}% · spot T1 €{fmt.num(data.spotPrices[1])} / T2 €{fmt.num(data.spotPrices[2])} / T3 €{fmt.num(data.spotPrices[3])}</p>
+      <p>{data.outlook}</p>
+    </div>
+  );
+  return null;
+}
+
+/* ---------------------------------------------------------------- BANK */
+function BankTab({ world, tid, myLast }) {
+  const f = world.teams[tid];
+  const rate = ((E.T.interest[f.rating] || 0.03) + (world.rateBump || 0)) * 4;
+  return (
+    <div className="grid2">
+      <Section title="Your banker's view">
+        <div className="bigrating">{f.rating}</div>
+        <p>Credit limit <b>{fmt.eur0(E.creditLimit(f))}</b> · drawn <b>{fmt.eur0(f.debt)}</b> at <b>{(rate * 100).toFixed(1)}% p.a.</b></p>
+        {f.emergencyDebt > 0 && <p className="neg">Emergency facility outstanding: {fmt.eur0(f.emergencyDebt)} at {(E.T.emergencyRate * 400).toFixed(0)}% p.a. The bank repays it automatically from spare cash and refinances what it can.</p>}
+        <p className="mini">The rating weighs interest cover, leverage against equity and whether you make money. It reprices your whole credit line each quarter — cheap debt is earned, not given.</p>
+        {myLast && <p className="mini">Last quarter: EBIT {fmt.eur0(myLast.pnl.ebit)}, interest {fmt.eur0(myLast.pnl.interest)}, equity {fmt.eur0(myLast.bs.equity)}.</p>}
+      </Section>
+      <Section title="Receivership rules">
+        <p>If equity falls below <b>{fmt.eur0(E.T.receiverEquityTrig * E.T.startCash)}</b>, the bank moves in: marketing capped, wages frozen, no new lines, and half of spare cash swept to creditors. Nobody is eliminated — you run the turnaround.</p>
+        <p>Exit by holding equity above <b>{fmt.eur0(E.T.receiverExitEquity * E.T.startCash)}</b> for two consecutive quarters.</p>
+        {f.receivership ? <p className="neg">Status: in receivership since Q{f.receivership.sinceQ}. Recovery quarters banked: {f.recoverQ}/2.</p> : <p className="pos">Status: going concern.</p>}
+      </Section>
+    </div>
+  );
+}
+
+
+/* --------------------------------------------------- INSTRUCTOR CONSOLE */
+function InstructorApp({ world, adapter, demoBar, onSwitchRole }) {
+  const [tab, setTab] = useState('control');
+  const [busy, setBusy] = useState(false);
+  const [subs, setSubs] = useState({});
+  useEffect(() => {
+    if (adapter.subscribeDecisionCount) return adapter.subscribeDecisionCount(world.q, setSubs);
+    let alive = true;
+    const poll = () => adapter.getDecisions(world.q).then(d => { if (alive) setSubs(d || {}); });
+    poll(); const iv = setInterval(poll, 1500);
+    return () => { alive = false; clearInterval(iv); };
+  }, [world.q, adapter]);
+
+  const resolve = async () => {
+    if (busy || world.finished) return;
+    const humanMissing = world.order.filter(id => !world.teams[id].isBot && !subs[id]);
+    const msg = humanMissing.length
+      ? 'Resolve ' + qLabel(world.q) + '? ' + humanMissing.length + ' team(s) have filed nothing and will run on standing orders: ' + humanMissing.map(id => world.teams[id].name).join(', ')
+      : 'Resolve ' + qLabel(world.q) + '? All teams have filed.';
+    if (!window.confirm(msg)) return;
+    setBusy(true);
+    try {
+      const decisions = await adapter.getDecisions(world.q) || {};
+      // standing orders: a silent team repeats its most recent filing (up to 3 quarters back)
+      for (const tidX of world.order) {
+        if (world.teams[tidX].isBot || decisions[tidX]) continue;
+        for (let back = 1; back <= 3 && world.q - back >= 1; back++) {
+          const old = await adapter.getDecisions(world.q - back);
+          if (old && old[tidX]) { decisions[tidX] = Object.assign({}, old[tidX], { __autopilot: true }); break; }
+        }
+      }
+      const rng = E.mulberry32((world.seed ^ E.hashStr('live' + world.q + Date.now())) >>> 0);
+      const w0 = E.normalizeWorld(JSON.parse(JSON.stringify(world)));
+      w0.order.forEach(tidX => { if (w0.teams[tidX].isBot) decisions[tidX] = E.botDecisions(w0, tidX, rng); });
+      E.botTradeMoves(w0, rng);
+      const { world: w2 } = E.resolveQuarter(w0, decisions);
+      await adapter.writeWorld(w2);
+    } catch (e) { console.error(e); window.alert('Resolution failed: ' + e.message); }
+    setBusy(false);
+  };
+
+  const patchWorld = fn => adapter.mutateWorld(w => { fn(w); return true; });
+
+  const tabs = [['control', 'Control'], ['firms', 'Firms'], ['events', 'Events'], ['wire', 'Wire'], ['present', 'Present'], ['export', 'Export']];
+  return (
+    <div className="app">
+      {demoBar}
+      <header className="topbar">
+        <div className="brand"><i className="jersey big console" /><div><b>Race control</b><span>{world.name}{adapter.code ? ' · world ' + adapter.code : ''}</span></div></div>
+        <div className="phase"><b>{world.finished ? 'FINAL' : qLabel(world.q)}</b><span>{world.finished ? 'Season complete' : world.roundOpen ? 'Round open' : 'Resolving'}</span></div>
+        <div className="topstats">
+          <Stat label="Filed" value={world.order.filter(id => !world.teams[id].isBot && subs[id]).length + '/' + world.order.filter(id => !world.teams[id].isBot).length} />
+          <Stat label="Labour pool" value={fmt.num(world.labourPool)} />
+          <Stat label="Supplier util." value={Math.round(world.supplier.util * 100) + '%'} />
+        </div>
+      </header>
+      <Peloton world={world} />
+      <nav className="tabs" role="tablist">{tabs.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={'tab' + (tab === k ? ' on' : '')} onClick={() => setTab(k)}>{l}</button>)}</nav>
+      <main className="content">
+        {tab === 'control' && <ControlTab world={world} subs={subs} resolve={resolve} busy={busy} patchWorld={patchWorld} adapter={adapter} />}
+        {tab === 'firms' && <FirmsTab world={world} />}
+        {tab === 'events' && <EventsTab world={world} patchWorld={patchWorld} />}
+        {tab === 'wire' && <Section title="Everything the wire has run"><Bulletin items={world.newsAll} /></Section>}
+        {tab === 'present' && <PresentTab world={world} />}
+        {tab === 'export' && <ExportTab world={world} adapter={adapter} />}
+      </main>
+    </div>
+  );
+}
+
+function ControlTab({ world, subs, resolve, busy, patchWorld, adapter }) {
+  const [showCodes, setShowCodes] = useState(false);
+  return (
+    <div className="grid2">
+      <Section title="Round control">
+        <p>Deciding <b>{qLabel(world.q)}</b> of {world.quartersTotal}. Teams file decisions; when the room is ready, resolve the market. Firms with nothing filed repeat their standing orders (autopilot).</p>
+        <table className="fin"><tbody>
+          {world.order.map(id => {
+            const t = world.teams[id];
+            return <tr key={id}><td><Chip color={t.color}>{t.name}</Chip></td>
+              <td className="r">{t.isBot ? <span className="mini">bot · {t.botType}</span> : subs[id] ? <span className="pos">filed ✓</span> : <span className="mini">nothing yet</span>}</td></tr>;
+          })}
+        </tbody></table>
+        <div className="submitbar inline">
+          <button className="btn primary big" disabled={busy || world.finished} onClick={resolve}>{busy ? 'Resolving…' : world.finished ? 'Season over' : 'Close round & resolve ' + qLabel(world.q)}</button>
+        </div>
+        {world.finished && <p className="pos">Final standings are on the Present tab. Hold the AGM: each board defends its record.</p>}
+      </Section>
+      <Section title="Modules & grid" right={<button className="btn small" onClick={() => setShowCodes(s => !s)}>{showCodes ? 'Hide codes' : 'Show join codes'}</button>}>
+        <div className="modrow">
+          {Object.keys(MODULE_LABELS).map(m => (
+            <Toggle key={m} on={!!world.modules[m]} label={MODULE_LABELS[m]} onChange={v => patchWorld(w => { w.modules[m] = v; })} />
+          ))}
+        </div>
+        <p className="mini">Modules unlock automatically on the session plan (supply & trade from Q3, marketing & research Q6, HR Q9, advanced finance Q12) — or flip them here whenever your class is ready.</p>
+        {showCodes && <table className="fin"><tbody>
+          <tr><td>World code</td><td className="r mono">{adapter.code || 'DEMO'}</td></tr>
+          <tr><td>Instructor code</td><td className="r mono">{world.instructorCode}</td></tr>
+          {world.order.map(id => <tr key={id}><td>{world.teams[id].name}</td><td className="r mono">{world.teams[id].joinCode}</td></tr>)}
+        </tbody></table>}
+        <div className="modrow">
+          {world.order.map(id => {
+            const t = world.teams[id];
+            return <button key={id} className="btn small" onClick={() => patchWorld(w => {
+              const f = w.teams[id];
+              if (f.isBot) { f.isBot = false; f.botType = null; }
+              else { f.isBot = true; f.botType = E.BOT_TYPES[Math.floor(Math.random() * E.BOT_TYPES.length)]; }
+            })}>{t.isBot ? 'Make ' + t.name + ' human' : 'Bot-run ' + t.name}</button>;
+          })}
+        </div>
+        <p className="mini">Bot-run a slot when a team is absent for a whole session, or to fill an odd grid. Bots decide at resolution.</p>
+      </Section>
+    </div>
+  );
+}
+
+function FirmsTab({ world }) {
+  const [open, setOpen] = useState(null);
+  const rows = world.order.map(id => world.teams[id]).slice().sort((a, b) => b.valuation - a.valuation);
+  return (
+    <div>
+      <Section title="The grid, sorted by company value" tight>
+        <table className="fin wide"><thead><tr><th>Firm</th><th className="r">Value</th><th className="r">Cash</th><th className="r">Equity</th><th className="r">Debt</th><th className="r">Rating</th><th className="r">Lines</th><th className="r">People</th><th className="r">Status</th></tr></thead><tbody>
+          {rows.map(f => (
+            <tr key={f.id} className="rowlink" onClick={() => setOpen(open === f.id ? null : f.id)}>
+              <td><Chip color={f.color}>{f.name}</Chip></td>
+              <td className="r">{fmt.eur0(f.valuation)}</td>
+              <td className="r">{fmt.eur0(f.cash)}</td>
+              <td className="r">{fmt.eur0(f.equity)}</td>
+              <td className="r">{fmt.eur0(f.debt + f.emergencyDebt)}</td>
+              <td className="r">{f.rating}</td>
+              <td className="r">{f.lines}</td>
+              <td className="r">{f.workers + f.engineers}</td>
+              <td className="r">{f.receivership ? <span className="neg">receivership</span> : f.isBot ? 'bot' : f.autopilot ? 'autopilot' : 'live'}</td>
+            </tr>
+          ))}
+        </tbody></table>
+        <p className="mini foot">Click a firm for its full statements — instructor eyes only.</p>
+      </Section>
+      {open && <Section title={world.teams[open].name + ' — full detail'} right={<button className="btn small" onClick={() => setOpen(null)}>Close</button>}>
+        <ReportsTab world={world} tid={open} />
+      </Section>}
+    </div>
+  );
+}
+
+function EventsTab({ world, patchWorld }) {
+  const [custom, setCustom] = useState({ name: '', headline: '', dur: 2, dCity: 0, dBudget: 0, dSport: 0, dCargo: 0, kitCost: 0, supplierCap: 0, rates: 0, wage: 0 });
+  const schedule = (ev, when) => patchWorld(w => {
+    w.pendingEvents = w.pendingEvents || []; w.activeEvents = w.activeEvents || [];
+    const base = { id: ev.id || 'custom' + Date.now(), name: ev.name, headline: ev.headline, effects: ev.effects, dur: ev.dur, remaining: ev.dur };
+    if (when === 'now') w.activeEvents.push({ ...base, justStarted: true });
+    else w.pendingEvents.push({ ...base, startQ: w.q + 1 });
+  });
+  const buildCustom = () => {
+    const eff = {};
+    const dem = {}; if (custom.dCity) dem.city = custom.dCity / 100; if (custom.dBudget) dem.budget = custom.dBudget / 100; if (custom.dSport) dem.sport = custom.dSport / 100; if (custom.dCargo) dem.cargo = custom.dCargo / 100;
+    if (Object.keys(dem).length) eff.demand = dem;
+    if (custom.kitCost) eff.kitCost = custom.kitCost / 100;
+    if (custom.supplierCap) eff.supplierCap = custom.supplierCap / 100;
+    if (custom.rates) eff.rates = custom.rates / 100 / 4;
+    if (custom.wage) eff.marketWage = custom.wage / 100;
+    return { id: 'custom' + Date.now(), name: custom.name || 'Special event', headline: custom.headline || custom.name || 'Something is happening in the market', dur: Math.max(1, custom.dur), effects: eff };
+  };
+  return (
+    <div className="grid2">
+      <Section title="Event library" right={<span className="mini">effects apply while the event runs</span>}>
+        {E.EVENT_LIBRARY.map(ev => (
+          <div key={ev.id} className="offer">
+            <b>{ev.name}</b><em className="mini grow">"{ev.headline}" · {ev.dur}q</em>
+            <button className="btn small" onClick={() => schedule(ev, 'next')}>Announce, hits next Q</button>
+            <button className="btn small primary" onClick={() => schedule(ev, 'now')}>Hit this quarter</button>
+          </div>
+        ))}
+        <div className="pendinglist">
+          {(world.pendingEvents || []).map((e, i) => <p key={'p' + i} className="mini">Scheduled: <b>{e.name}</b> from Q{e.startQ} <button className="btn tiny" onClick={() => patchWorld(w => { w.pendingEvents.splice(i, 1); })}>cancel</button></p>)}
+          {(world.activeEvents || []).map((e, i) => <p key={'a' + i} className="mini">Live: <b>{e.name}</b> — {e.remaining}q to run</p>)}
+        </div>
+      </Section>
+      <Section title="Build your own">
+        <div className="finrow wrap">
+          <label className="lbl grow">Name <input className="txt" value={custom.name} onChange={e => setCustom({ ...custom, name: e.target.value })} placeholder="Port strike" /></label>
+          <label className="lbl grow">Headline <input className="txt" value={custom.headline} onChange={e => setCustom({ ...custom, headline: e.target.value })} placeholder="Container backlog chokes component imports" /></label>
+          <label className="lbl">Duration (q) <Num value={custom.dur} onChange={v => setCustom({ ...custom, dur: v })} min={1} max={8} width={70} /></label>
+          <label className="lbl">City demand % <Num value={custom.dCity} onChange={v => setCustom({ ...custom, dCity: v })} min={-80} max={200} width={80} /></label>
+          <label className="lbl">Budget demand % <Num value={custom.dBudget} onChange={v => setCustom({ ...custom, dBudget: v })} min={-80} max={200} width={80} /></label>
+          <label className="lbl">Sport demand % <Num value={custom.dSport} onChange={v => setCustom({ ...custom, dSport: v })} min={-80} max={200} width={80} /></label>
+          <label className="lbl">Cargo demand % <Num value={custom.dCargo} onChange={v => setCustom({ ...custom, dCargo: v })} min={-80} max={200} width={80} /></label>
+          <label className="lbl">Kit cost % <Num value={custom.kitCost} onChange={v => setCustom({ ...custom, kitCost: v })} min={-50} max={100} width={80} /></label>
+          <label className="lbl">Supplier capacity % <Num value={custom.supplierCap} onChange={v => setCustom({ ...custom, supplierCap: v })} min={-80} max={100} width={80} /></label>
+          <label className="lbl">Rates +pp p.a. <Num value={custom.rates} onChange={v => setCustom({ ...custom, rates: v })} min={-5} max={10} width={80} /></label>
+          <label className="lbl">Market wage % <Num value={custom.wage} onChange={v => setCustom({ ...custom, wage: v })} min={0} max={50} width={80} /></label>
+        </div>
+        <div className="submitbar inline">
+          <button className="btn" onClick={() => schedule(buildCustom(), 'next')}>Announce, hits next Q</button>
+          <button className="btn primary" onClick={() => schedule(buildCustom(), 'now')}>Hit this quarter</button>
+        </div>
+        <p className="mini">Announcing first lets markets (and rumours) react a quarter early — often the better theatre.</p>
+      </Section>
+    </div>
+  );
+}
+
+function PresentTab({ world }) {
+  const lastQ = world.q - 1;
+  const r = world.resultsByQ[lastQ];
+  return (
+    <div className="present">
+      <h2 className="present-title">{world.finished ? 'FINAL STANDINGS' : r ? qLabel(lastQ) + ' — RESULTS' : 'SEASON START'}</h2>
+      <div className="present-grid">
+        <div>
+          <h3 className="present-sub">General classification</h3>
+          {world.order.map(id => world.teams[id]).slice().sort((a, b) => b.valuation - a.valuation).map((f, i) => (
+            <div key={f.id} className="present-row">
+              <b className="pos">{i + 1}</b><i className="jersey" style={{ background: f.color }} /><span className="rname">{f.name}</span>
+              <span className="val">{fmt.eur0(f.valuation)}</span>
+              {f.receivership && <span className="neg mini">receivership</span>}
+            </div>
+          ))}
+        </div>
+        <div>
+          <h3 className="present-sub">The wire</h3>
+          <Bulletin items={(world.newsAll || []).filter(n => n.q === lastQ)} big />
+        </div>
+      </div>
+      {r && <div className="present-segs">
+        {E.SEGMENTS.map(s => (
+          <div key={s} className="segblock">
+            <div className="segline"><b>{E.SEG_META[s].label}</b><span className="mini">{fmt.num(r.segs[s].totalSold)} sold · avg €{fmt.num(r.segs[s].avgPrice)}</span></div>
+            <div className="sharebar tall">{r.segs[s].firms.filter(x => x.share > 0.005).map(x => <i key={x.tid} style={{ width: (x.share * 100) + '%', background: world.teams[x.tid].color }} />)}</div>
+          </div>
+        ))}
+      </div>}
+    </div>
+  );
+}
+
+function ExportTab({ world, adapter }) {
+  const dl = (name, text, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); };
+  const exportCSV = () => {
+    const rows = [['quarter', 'team', 'valuation', 'revenue', 'ebit', 'cash', 'equity', 'rating', 'receivership']];
+    Object.keys(world.resultsByQ || {}).filter(q => world.resultsByQ[q]).forEach(q => {
+      const r = world.resultsByQ[q];
+      Object.entries(r.firms).forEach(([tid, fr]) => rows.push([q, fr.name, fr.valuation, fr.pnl.revenue, fr.pnl.ebit, fr.bs.cash, fr.bs.equity, fr.rating, fr.receivership ? 1 : 0]));
+    });
+    dl('slipstream_' + (adapter.code || 'demo') + '.csv', rows.map(r => r.join(',')).join('\n'), 'text/csv');
+  };
+  return (
+    <Section title="Take the season home">
+      <div className="submitbar inline">
+        <button className="btn" onClick={() => dl('slipstream_world.json', JSON.stringify(world, null, 1), 'application/json')}>Full world (JSON)</button>
+        <button className="btn" onClick={exportCSV}>Standings history (CSV)</button>
+      </div>
+      <p className="mini">The CSV holds every firm's quarterly valuation, revenue, EBIT, cash and equity — ready for grading rubrics or a debrief in R.</p>
+    </Section>
+  );
+}
+
+/* ------------------------------------------------------------ ROOT APP */
+function DemoBar({ world, current, onSwitch, onReset }) {
+  return (
+    <div className="demobar">
+      <b>Demo</b>
+      <button className={'btn tiny' + (current.role === 'instructor' ? ' primary' : '')} onClick={() => onSwitch({ role: 'instructor' })}>Instructor</button>
+      {world.order.filter(id => !world.teams[id].isBot).map(id => (
+        <button key={id} className={'btn tiny' + (current.role === 'team' && current.tid === id ? ' primary' : '')} onClick={() => onSwitch({ role: 'team', tid: id })}>{world.teams[id].name}</button>
+      ))}
+      <span className="grow" />
+      <button className="btn tiny" onClick={onReset}>Reset demo</button>
+    </div>
+  );
+}
+
+function App() {
+  const [adapter, setAdapter] = useState(null);
+  const [world, setWorld] = useState(null);
+  const [role, setRole] = useState(null);
+  const [firebaseReady] = useState(() => {
+    try { return !!(window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey && window.firebase); } catch (e) { return false; }
+  });
+
+  useEffect(() => {
+    if (!adapter) return;
+    return adapter.subscribe(snap => { if (snap && snap.world) setWorld(E.normalizeWorld(snap.world)); });
+  }, [adapter]);
+
+  const enter = (ad, w, r) => {
+    setAdapter(ad); setWorld(E.normalizeWorld(w));
+    if (r) setRole(r);
+    else {
+      const saved = sessionStorage.getItem('slipstream_role_' + (ad.code || 'demo'));
+      setRole(saved ? JSON.parse(saved) : null);
+    }
+  };
+  const pick = r => { setRole(r); try { sessionStorage.setItem('slipstream_role_' + (adapter.code || 'demo'), JSON.stringify(r)); } catch (e) {} };
+
+  if (!adapter || !world) return <Lobby onEnter={enter} firebaseReady={firebaseReady} />;
+  if (!role) return <RolePicker world={world} onPick={pick} />;
+
+  const demoBar = adapter.kind === 'local'
+    ? <DemoBar world={world} current={role} onSwitch={setRole} onReset={() => { adapter.reset(); setAdapter(null); setWorld(null); setRole(null); }} />
+    : null;
+
+  if (role.role === 'instructor') return <InstructorApp world={world} adapter={adapter} demoBar={demoBar} />;
+  return <TeamApp world={world} tid={role.tid} adapter={adapter} demoBar={demoBar} />;
+}
+
+/* ---------------------------------------------------------------- BOOT */
+(function boot() {
+  try {
+    if (window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey && window.firebase) {
+      firebase.initializeApp(window.FIREBASE_CONFIG);
+    }
+  } catch (e) { console.warn('Firebase init skipped:', e.message); }
+  const rootEl = document.getElementById('root');
+  ReactDOM.createRoot(rootEl).render(<App />);
+})();
+
+</script>
+</body>
+</html>
