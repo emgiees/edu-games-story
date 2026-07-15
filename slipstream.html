@@ -1411,6 +1411,8 @@ function Lobby({ onEnter, firebaseReady }) {
   const [nTeams, setNTeams] = useState(8);
   const [quarters, setQuarters] = useState(15);
   const [wname, setWname] = useState('');
+  const [restoreFile, setRestoreFile] = useState(null);
+  const [restoreCode, setRestoreCode] = useState('');
 
   const join = async () => {
     setErr(''); setBusy(true);
@@ -1435,6 +1437,22 @@ function Lobby({ onEnter, firebaseReady }) {
       await ad.createWorld(world);
       onEnter(ad, world, { role: 'instructor' });
     } catch (e) { setErr('Could not create the world. Check your connection and Firebase configuration.'); }
+    setBusy(false);
+  };
+  const restore = async () => {
+    setErr(''); setBusy(true);
+    try {
+      const text = await restoreFile.text();
+      let w; try { w = JSON.parse(text); } catch (e) { setErr('That file is not valid JSON.'); setBusy(false); return; }
+      if (!w || !w.teams || !w.order) { setErr('That file does not look like a SLIPSTREAM world export.'); setBusy(false); return; }
+      const code = (restoreCode.trim() || w._exportedFrom || Math.random().toString(36).slice(2, 8)).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+      const ad = makeFirebaseAdapter(code);
+      const existing = await ad.load();
+      if (existing && existing.world && !window.confirm('A world already exists under code ' + code + '. Overwrite it with this backup?')) { setBusy(false); return; }
+      const world = E.normalizeWorld(w);
+      await ad.createWorld(world);
+      onEnter(ad, world, { role: 'instructor' });
+    } catch (e) { setErr('Restore failed. Check your connection and Firebase configuration.'); }
     setBusy(false);
   };
   const demo = () => {
@@ -1475,7 +1493,14 @@ function Lobby({ onEnter, firebaseReady }) {
               <label className="lbl">Teams <Num value={nTeams} onChange={setNTeams} min={2} max={10} width={90} /></label>
               <label className="lbl">Quarters <Num value={quarters} onChange={setQuarters} min={6} max={20} width={90} /></label>
               <button className="btn primary" disabled={busy || !firebaseReady} onClick={create}>{busy ? 'Creating…' : 'Create world'}</button>
-              {!firebaseReady && <p className="hint warn">Creating live worlds needs Firebase. Demo mode works without it.</p>}
+              <p className="hint" style={{ marginTop: 6 }}>Or restore a season from a JSON backup (Export tab):</p>
+              <input type="file" accept=".json,application/json" className="txt" aria-label="World backup file" onChange={e => setRestoreFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
+              {restoreFile && <>
+                <input className="txt" placeholder="World code (blank keeps the original)" value={restoreCode} onChange={e => setRestoreCode(e.target.value)} aria-label="World code to restore under" />
+                <button className="btn" disabled={busy || !firebaseReady} onClick={restore}>Restore world</button>
+                <p className="hint">Team and instructor codes travel inside the backup, so student codes keep working. Current-quarter filings are not in the backup; teams simply refile.</p>
+              </>}
+              {!firebaseReady && <p className="hint warn">Creating or restoring live worlds needs Firebase. Demo mode works without it.</p>}
             </div>
           )}
         </div>
@@ -2268,10 +2293,10 @@ function ExportTab({ world, adapter }) {
   return (
     <Section title="Take the season home">
       <div className="submitbar inline">
-        <button className="btn" onClick={() => dl('slipstream_world.json', JSON.stringify(world, null, 1), 'application/json')}>Full world (JSON)</button>
+        <button className="btn" onClick={() => dl('slipstream_world_' + (adapter.code || 'demo') + '.json', JSON.stringify(Object.assign({}, world, { _exportedFrom: adapter.code || null, _exportedAt: new Date().toISOString() }), null, 1), 'application/json')}>Full world (JSON)</button>
         <button className="btn" onClick={exportCSV}>Standings history (CSV)</button>
       </div>
-      <p className="mini">The CSV holds every firm's quarterly valuation, revenue, EBIT, cash and equity — ready for grading rubrics or a debrief in R.</p>
+      <p className="mini">The CSV holds every firm's quarterly valuation, revenue, EBIT, cash and equity — ready for grading rubrics or a debrief in R. The JSON is a complete season backup: it can be restored from the lobby onto the same world code (students' codes keep working) or a fresh one.</p>
     </Section>
   );
 }
