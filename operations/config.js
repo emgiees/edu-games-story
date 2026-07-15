@@ -10,13 +10,14 @@
    ============================================================ */
 
 const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyCSCc7QlbUv8f9Iae8eRZtLo9ER25feXkU",
-  authDomain: "my-edu-games.firebaseapp.com",
-  databaseURL: "https://my-edu-games-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "my-edu-games",
-  storageBucket: "my-edu-games.firebasestorage.app",
-  messagingSenderId: "535387410502",
-  appId: "1:535387410502:web:512e168834426cdaf93a47"};
+  apiKey: "WKLEJ-API-KEY",
+  authDomain: "WKLEJ.firebaseapp.com",
+  databaseURL: "https://WKLEJ-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "WKLEJ",
+  storageBucket: "WKLEJ.appspot.com",
+  messagingSenderId: "WKLEJ",
+  appId: "WKLEJ"
+};
 
 (typeof window !== 'undefined' ? window : globalThis).KONFIG = {
 
