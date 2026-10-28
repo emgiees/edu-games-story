@@ -54,14 +54,30 @@ function makeFirebaseStore() {
   W.firebase.initializeApp(W.FIREBASE_CONFIG);
   const db = W.firebase.database();
   const R = p => db.ref(CFG.ROOT_KEY + '/' + p);
+  // every write reports failure on screen instead of failing silently
+  const guard = (promise) => {
+    let settled = false;
+    const slow = setTimeout(() => { if (!settled) storeError({ code: 'timeout' }); }, 8000);
+    return promise.then(v => { settled = true; clearTimeout(slow); storeOk(); return v; }, err => { settled = true; clearTimeout(slow); storeError(err); throw err; });
+  };
   return {
     local: false,
-    get: p => R(p).once('value').then(s => s.val()),
-    set: (p, v) => R(p).set(v === undefined ? null : v),
-    update: (p, o) => R(p).update(o),
-    sub: (p, cb) => { const ref = R(p); const h = ref.on('value', s => cb(s.val()), () => cb(null)); return () => ref.off('value', h); }
+    get: p => guard(R(p).once('value').then(s => s.val())),
+    set: (p, v) => guard(R(p).set(v === undefined ? null : v)),
+    update: (p, o) => guard(R(p).update(o)),
+    sub: (p, cb) => { const ref = R(p); const h = ref.on('value', s => { storeOk(); cb(s.val()); }, err => { storeError(err); cb(null); }); return () => ref.off('value', h); }
   };
 }
+let storeProblem = '';
+function storeError(err) {
+  const code = String((err && (err.code || err.message)) || 'unknown error');
+  storeProblem = /permission/i.test(code)
+    ? `The database refused to save (permission denied). In the Firebase console, open Realtime Database → Rules and allow the branch "${CFG.ROOT_KEY}", as described in README.md.`
+    : code === 'timeout' ? 'The database is not answering. Check the internet connection; your last action will be saved when the connection is back.'
+    : `The database reported an error: ${code}.`;
+  scheduleRender();
+}
+function storeOk() { if (storeProblem) { storeProblem = ''; scheduleRender(); } }
 const STORE = IS_LOCAL ? makeLocalStore() : makeFirebaseStore();
 
 /* ================= HELPERS ================= */
@@ -196,7 +212,7 @@ function vLanding() {
   <section class="modes">
     <form class="card stack" id="joinForm">
       <span class="eyebrow">Teams</span><h3>Join your team</h3>
-      <label class="field" for="joinCode">Cohort code<input type="text" id="joinCode" class="code-input" maxlength="5" autocomplete="off" required value="${esc(S.code || '')}"></label>
+      <label class="field" for="joinCode">Cohort code<input type="text" id="joinCode" class="code-input" maxlength="12" autocomplete="off" required value="${esc(S.code || '')}"></label>
       <label class="field" for="joinTeam">Team name<input type="text" id="joinTeam" maxlength="30" required placeholder="e.g. Team Gallup" value="${esc(S.teamName || '')}"></label>
       <button class="btn">Enter the archive</button>
       <p class="muted small">Use the same team name every session. Your progress and score carry over.</p>
@@ -328,7 +344,7 @@ function vTest() {
     return `<section class="card stack">
       <p class="eyebrow">Exit test · individual · not graded</p><h2>Which cohort are you in?</h2>
       ${flash ? `<p class="feedback bad">${flash}</p>` : ''}
-      <form id="testCodeForm" class="row"><input type="text" id="testCode" class="code-input" maxlength="5" required aria-label="Cohort code" value="${esc(S.code || '')}"><button class="btn">Continue</button></form>
+      <form id="testCodeForm" class="row"><input type="text" id="testCode" class="code-input" maxlength="12" required aria-label="Cohort code" value="${esc(S.code || '')}"><button class="btn">Continue</button></form>
       <button class="btn ghost" data-go="landing">Back</button></section>`;
   }
   const cohort = data['cohorts/' + S.testCode];
@@ -363,9 +379,9 @@ function vConsole() {
   const sel = S.cCode && cohorts && cohorts[S.cCode] ? Object.assign({ code: S.cCode }, cohorts[S.cCode]) : null;
   return `<section class="stack">
     <div class="file-head"><div><p class="eyebrow">Instructor console</p><h1 class="h1-sm">Cohorts</h1></div><div class="row"><button class="btn ghost" id="exportAll">Download all results (Excel)</button><button class="btn ghost" id="lockConsole">Close console</button></div></div>
-    ${flash ? `<p class="feedback ${/^✓/.test(flash) ? 'good' : 'bad'}">${flash}</p>` : ''}
+    ${flash ? `<p class="feedback ${/^✓/.test(flash) ? 'good' : /…$/.test(flash) ? '' : 'bad'}">${flash}</p>` : ''}
     <div class="cohort-list">${list.map(c => `<button class="card cohort${c.code === S.cCode ? ' on' : ''}" data-cohort="${c.code}"><span class="eyebrow">${c.archived ? 'Archived' : 'Active'} · ${c.code}</span><b>${esc(c.name)}</b><span class="muted small">Rooms open: ${ROOMS.filter(r => isOpen(c, r.id)).map(r => r.number).join(', ') || 'none'}</span></button>`).join('')}
-      <form id="newCohort" class="card stack"><span class="eyebrow">New cohort</span><input type="text" id="cohortName" maxlength="40" placeholder="e.g. BA Business 2026, Group A" required aria-label="Cohort name"><button class="btn">Create cohort</button></form>
+      <form id="newCohort" class="card stack"><span class="eyebrow">New cohort</span><label class="field" for="cohortName">Name<input type="text" id="cohortName" maxlength="40" placeholder="e.g. BA Business 2026, Group A" required></label><label class="field" for="cohortCode">Join code (optional)<input type="text" id="cohortCode" class="code-input" maxlength="12" placeholder="e.g. GROUP-A"></label><span class="muted small">3 to 12 letters, digits or hyphens. Leave empty for a random 5-letter code.</span><button class="btn">Create cohort</button></form>
     </div>
   </section>
   ${sel ? vCohort(sel) : `<p class="muted">Choose a cohort, or create one. Each cohort gets its own code, which students type when they join.</p>`}
@@ -438,7 +454,7 @@ function render(fromData) {
   const keep = {}; let focusId = null;
   if (fromData) { app.querySelectorAll('input[id]:not([type=radio]):not([type=file]), select[id], textarea[id]').forEach(el => { keep[el.id] = el.value; }); app.querySelectorAll('input[type=radio]:checked').forEach(el => { keep['radio:' + el.name] = el.value; }); if (document.activeElement && document.activeElement.id) focusId = document.activeElement.id; }
   const views = { landing: vLanding, team: vTeam, room: vRoom, guide: vGuide, test: vTest, console: vConsole, projector: vProjector };
-  app.innerHTML = (views[S.view] || vLanding)();
+  app.innerHTML = (storeProblem ? `<p class="confirm" role="alert"><b>Not saved.</b> ${esc(storeProblem)}</p>` : '') + (views[S.view] || vLanding)();
   if (fromData) {
     Object.keys(keep).forEach(k => { if (k.indexOf('radio:') === 0) { const el = app.querySelector(`input[name="${k.slice(6)}"][value="${keep[k]}"]`); if (el) el.checked = true; } else { const el = document.getElementById(k); if (el) el.value = keep[k]; } });
     if (focusId) { const el = document.getElementById(focusId); if (el) el.focus(); }
@@ -454,9 +470,10 @@ const teamPath = () => `teams/${S.code}/${S.tid}`;
 function writeRoom(rs) { return STORE.set(`${teamPath()}/rooms/${S.rid}`, rs); }
 
 async function joinTeam(code, name) {
-  code = norm(code).slice(0, 5); name = name.trim();
+  code = norm(code).slice(0, 12); name = name.trim();
   if (!code || !name) return;
-  const cohort = await STORE.get('cohorts/' + code);
+  let cohort;
+  try { cohort = await STORE.get('cohorts/' + code); } catch (e) { return; }
   if (!cohort) { flash = `No cohort has the code ${esc(code)}. Check it with your instructor.`; render(); return; }
   const tid = slug(name), existing = await STORE.get(`teams/${code}/${tid}`);
   if (!existing) {
@@ -597,7 +614,7 @@ document.addEventListener('submit', e => {
   const f = e.target.id;
   if (f === 'joinForm') joinTeam($('#joinCode').value, $('#joinTeam').value);
   if (f === 'codeForm') tryCode($('#code').value);
-  if (f === 'testCodeForm') { const code = norm($('#testCode').value).slice(0, 5); if (code) go('test', { testCode: code }); }
+  if (f === 'testCodeForm') { const code = norm($('#testCode').value).slice(0, 12); if (code) go('test', { testCode: code }); }
   if (f === 'testForm') {
     const rid = $('#testRoom').value, room = roomById(rid), name = $('#studentName').value.trim();
     if (!name) return;
@@ -608,8 +625,14 @@ document.addEventListener('submit', e => {
   if (f === 'pinForm') { if ($('#pin').value === String(CFG.INSTRUCTOR_PIN)) { flash = ''; go('console', { consoleOpen: true }); } else { flash = 'Wrong PIN.'; render(); } }
   if (f === 'newCohort') {
     const name = $('#cohortName').value.trim(); if (!name) return;
-    const code = newCode(data['cohorts'] || {});
-    STORE.set('cohorts/' + code, { name, createdAt: Date.now(), archived: false, rooms: { r1: { open: false } } }).then(() => { S.cCode = code; S.cRoom = 'r1'; flash = `✓ Created ${name}. Students join with the code ${code}.`; saveSession(); render(); });
+    const wanted = norm($('#cohortCode').value), existing = data['cohorts'] || {};
+    if (wanted && !/^[A-Z0-9-]{3,12}$/.test(wanted)) { flash = 'The join code can only use letters, digits and hyphens, 3 to 12 characters.'; render(true); return; }
+    if (wanted && existing[wanted]) { flash = `The code ${wanted} is already used by another cohort.`; render(true); return; }
+    const code = wanted || newCode(existing);
+    flash = 'Creating…'; render(true);
+    STORE.set('cohorts/' + code, { name, createdAt: Date.now(), archived: false, rooms: { r1: { open: false } } })
+      .then(() => { S.cCode = code; S.cRoom = 'r1'; flash = `✓ Created ${esc(name)}. Students join with the code ${code}.`; saveSession(); render(); })
+      .catch(() => { flash = 'The cohort was not created. See the message at the top of the page.'; render(true); });
   }
 });
 

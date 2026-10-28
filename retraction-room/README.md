@@ -16,10 +16,16 @@ An escape-room game in four sessions for Foundations of Social Research (IMC Kre
 
 1. Copy the whole folder into the `edu-games-story` repository and name it `retraction-room` (next to `operations/`, `quiz/` and the others).
 2. Open `config.js` and change `INSTRUCTOR_PIN` from `0000` to your own PIN. The Firebase settings are already filled in with the same project as your other games (`my-edu-games`). The game writes only under its own branch, `retraction-room/`, so it does not touch the other games' data.
-3. If your Firebase Realtime Database rules list each game's branch separately, add this entry next to the others:
+3. **Allow the game's branch in Firebase.** Your other games save under `rooms/`, so the database rules probably only allow that branch. Open the Firebase console → Realtime Database → Rules, and add `retraction-room` next to `rooms`, for example:
    ```json
-   "retraction-room": { ".read": true, ".write": true }
+   {
+     "rules": {
+       "rooms": { ".read": true, ".write": true },
+       "retraction-room": { ".read": true, ".write": true }
+     }
+   }
    ```
+   Keep whatever is already in your `rooms` entry, and only add the `retraction-room` line. Click **Publish**. Without this step, nothing can be saved: the game then shows a "Not saved … permission denied" message at the top of the page.
 4. Commit and push. The game will be at `https://emgiees.github.io/edu-games-story/retraction-room/`.
 
 ## Test it first
