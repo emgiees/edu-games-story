@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KONTRAKT — test sprawdzający, Epizod 1</title>
+<title>KONTRAKT — test sprawdzający</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap&subset=latin-ext" rel="stylesheet">
 <style>
 :root{--ply:#F3EFE6;--ink:#23201B;--muted:#6E675B;--card:#FFFDF7;--amber:#E8A013;--steel:#33566B;--steel-l:#E4EBEF;
@@ -49,15 +49,16 @@ td.n{text-align:right;font-family:var(--f-mono)}
 <script src="config.js"></script>
 </head>
 <body>
-<div class="board"><div class="in"><div class="logo">KON<em>TRAKT</em></div><div class="tag">test sprawdzający · Epizod 1 „Audyt”</div></div></div>
+<div class="board"><div class="in"><div class="logo">KON<em>TRAKT</em></div><div class="tag" id="tag">test sprawdzający</div></div></div>
 <div class="wrap" id="app"></div>
 <script>
 /* Test do samosprawdzenia (nieoceniany). Wyniki: kontrakt-test/<QUIZ_ID>/<id>.
-   Widoki: test.html (studenci), test.html?qr (kod QR na rzutnik), test.html?wyniki (lista wyników). */
-var QUIZ_ID = 'e1';
-var PAGE_URL = 'https://emgiees.github.io/edu-games-story/operations/test.html';
+   Widoki: test.html (studenci, Epizod 1), test.html?e=2 (Epizod 2); dopisz &qr (kod QR na rzutnik) lub &wyniki (lista wyników),
+   np. test.html?e=2&qr. Bez e= zawsze Epizod 1 (tak prowadzi pierwszy kod QR). */
+var qs = new URLSearchParams(location.search);
+var QUIZ_ID = 'e' + (qs.get('e') || '1');
 
-var PYTANIA = [
+var PYTANIA_E1 = [
   { t: 'Płyty wiórowe zamawiane są dopiero wtedy, gdy planistka zauważy pusty regał. Którą metodą należy się tym zająć?',
     o: ['Prognozowanie i MRP', 'Optymalizacja przewozów', 'Harmonogramowanie i balansowanie', 'Normowanie i wartościowanie pracy'], a: 0,
     e: 'Brak planu zakupów materiałów to problem obszaru „materiały i zapasy”: prognoza popytu → MPS → MRP wyznacza, ile i kiedy zamówić.' },
@@ -114,8 +115,74 @@ var PYTANIA = [
     e: 'Analiza odchyleń rozdziela dwie różne rozmowy: o cenach z dostawcą, o zużyciu i normach z halą.' }
 ];
 
+var PYTANIA_E2 = [
+  { t: 'Jak liczy się wskaźnik OEE?',
+    o: ['Dostępność × wydajność × jakość', 'Dostępność + wydajność + jakość', 'Czas pracy / czas kalendarzowy', 'Liczba dobrych sztuk / plan produkcji'], a: 0,
+    e: 'OEE (Overall Equipment Effectiveness) to iloczyn trzech współczynników, więc kilka „niezłych” składowych daje razem słaby wynik.' },
+  { t: 'Okleiniarka miała zaplanowane 480 min pracy, z czego 96 min stała. Ile wynosi dostępność?',
+    o: ['80%', '96%', '20%', '83%'], a: 0,
+    e: 'Dostępność = czas pracy / czas planowany = (480 − 96) / 480 = 384 / 480 = 80%.' },
+  { t: 'Wyprodukowano 500 elementów, w tym 25 wadliwych. Ile wynosi współczynnik jakości?',
+    o: ['95%', '5%', '97,5%', '90%'], a: 0,
+    e: 'Jakość = dobre sztuki / wszystkie sztuki = 475 / 500 = 95%.' },
+  { t: 'Dostępność 87,5%, wydajność 80%, jakość 95%. Ile wynosi OEE?',
+    o: ['66,5%', '87,5%', '80%', '262,5%'], a: 0,
+    e: 'OEE = 0,875 × 0,80 × 0,95 = 0,665, czyli 66,5%. „Maszyny chodzą na sto procent” spotyka rzeczywistość.' },
+  { t: 'Co to jest wąskie gardło?',
+    o: ['Zasób, którego zdolność ogranicza przepływ całego systemu', 'Maszyna o najniższym OEE', 'Stanowisko z największą liczbą pracowników', 'Najstarsza maszyna w zakładzie'], a: 0,
+    e: 'Wąskie gardło to zasób o najmniejszej zdolności względem obciążenia. Godzina stracona na nim to godzina stracona dla całej fabryki.' },
+  { t: 'Zmiana trwa 480 min, a dzienne zapotrzebowanie to 240 komód. Ile wynosi czas taktu?',
+    o: ['2 min/szt.', '0,5 min/szt.', '4 min/szt.', '240 min'], a: 0,
+    e: 'Takt = dostępny czas / zapotrzebowanie = 480 / 240 = 2 min. Co 2 minuty z linii musi zejść komoda.' },
+  { t: 'Suma czasów wszystkich czynności montażu komody wynosi 9,5 min, takt 2 min. Jaka jest minimalna liczba stanowisk?',
+    o: ['5', '4', '4,75', '10'], a: 0,
+    e: 'Minimum stanowisk = ⌈suma czasów / takt⌉ = ⌈9,5 / 2⌉ = ⌈4,75⌉ = 5. Zaokrąglamy zawsze w górę.' },
+  { t: 'Ta sama linia (suma czasów 9,5 min, takt 2 min) ma 5 stanowisk. Ile wynosi jej efektywność?',
+    o: ['95%', '80%', '47,5%', '100%'], a: 0,
+    e: 'Efektywność = suma czasów / (liczba stanowisk × takt) = 9,5 / (5 × 2) = 95%. Przy „czterech stołach, bo były wolne” takt nie byłby dotrzymany.' },
+  { t: 'Przydzielając czynności do stanowisk przy balansowaniu linii, trzeba przestrzegać…',
+    o: ['…relacji poprzedzania i tego, by czas stanowiska nie przekroczył taktu', '…tylko alfabetycznej kolejności czynności', '…równej liczby czynności na każdym stanowisku', '…tylko taktu, kolejność nie ma znaczenia'], a: 0,
+    e: 'Dwa twarde warunki: czynność trafia na stanowisko dopiero po swoich poprzednikach, a suma czasów na stanowisku ≤ takt.' },
+  { t: 'Gdzie leży rozwiązanie optymalne zadania programowania liniowego (jeśli istnieje)?',
+    o: ['W wierzchołku obszaru rozwiązań dopuszczalnych', 'Zawsze w środku obszaru dopuszczalnego', 'Na osi, gdzie wszystkie zmienne są równe zero', 'Poza obszarem dopuszczalnym'], a: 0,
+    e: 'Funkcja celu jest liniowa, więc optimum osiąga się w wierzchołku obszaru dopuszczalnego (lub na całej krawędzi).' },
+  { t: 'Raport wrażliwości Solvera: cena dualna ograniczenia „godziny okleiniarki” = 120 zł/h. Co to znaczy?',
+    o: ['Dodatkowa godzina okleiniarki zwiększyłaby marżę o ok. 120 zł (w zakresie dopuszczalnych zmian)', 'Godzina pracy okleiniarki kosztuje 120 zł', 'Okleiniarka ma 120 godzin wolnych', 'Produkt z okleiniarki daje 120 zł marży na sztuce'], a: 0,
+    e: 'Cena dualna mówi, ile warta jest dodatkowa jednostka zasobu: o ile zmieni się wartość funkcji celu, gdy prawa strona ograniczenia wzrośnie o 1.' },
+  { t: 'Cena dualna godziny okleiniarki to 120 zł/h, a zakład z Malborka sprzedaje godzinę oklejania za 62 zł. Czy kupić godziny (w zakresie dopuszczalnych zmian)?',
+    o: ['Tak, każda kupiona godzina daje ok. 58 zł dodatkowej marży', 'Nie, bo 62 zł to dodatkowy koszt', 'Tylko gdy cena dualna jest równa 62 zł', 'Nie da się tego ocenić z raportu wrażliwości'], a: 0,
+    e: 'Godzina wąskiego gardła jest warta 120 zł, a kosztuje 62 zł, więc zysk netto to ok. 58 zł/h (dopóki zmiana mieści się w zakresie ważności ceny dualnej).' },
+  { t: 'Ograniczenie ma w rozwiązaniu optymalnym luz (część zasobu zostaje niewykorzystana). Ile wynosi jego cena dualna?',
+    o: ['0', 'Tyle, ile wynosi luz', 'Tyle, ile wartość funkcji celu', 'Nie da się określić'], a: 0,
+    e: 'Ograniczenie niewiążące: dodatkowa jednostka zasobu, którego już mamy za dużo, nic nie daje, więc cena dualna = 0.' },
+  { t: 'Reguła Johnsona (dwa gniazda M1 → M2): co robimy z zadaniem, które ma najkrótszy ze wszystkich czasów?',
+    o: ['Jeśli ten czas jest na M1, dajemy je jak najwcześniej; jeśli na M2, jak najpóźniej', 'Zawsze dajemy je na początek', 'Zawsze dajemy je na koniec', 'Dajemy je tam, gdzie jest najmniej pilne'], a: 0,
+    e: 'Krótki czas na M1 na początku szybko „karmi” M2, a krótki czas na M2 na końcu skraca ogon harmonogramu. Potem usuwamy zadanie i powtarzamy.' },
+  { t: 'Zlecenia (czas na M1, czas na M2): A (3, 6), B (5, 2), C (1, 4), D (6, 5). Jaka jest kolejność wg reguły Johnsona?',
+    o: ['C, A, D, B', 'A, B, C, D', 'C, A, B, D', 'B, D, A, C'], a: 0,
+    e: 'Min = 1 (C na M1) → C pierwsze. Min = 2 (B na M2) → B ostatnie. Min = 3 (A na M1) → A drugie. Zostaje D na trzecim miejscu: C, A, D, B.' },
+  { t: 'Dla kolejności C, A, D, B z poprzedniego pytania: ile wynosi czas całkowity (makespan)?',
+    o: ['18', '20', '15', '23'], a: 0,
+    e: 'M1: C 0–1, A 1–4, D 4–10, B 10–15. M2: C 1–5, A 5–11, D 11–16, B 16–18. Makespan = 18, a kolejność FIFO (A, B, C, D) dałaby 20.' },
+  { t: 'Brakuje 100 h zdolności. Opcje: nadgodziny 57 zł/h (limit 144 h), kooperacja 62 zł/h, II zmiana 18 000 zł/mies. Która jest najtańsza rachunkowo?',
+    o: ['Nadgodziny: 5 700 zł', 'Kooperacja: 6 200 zł', 'II zmiana: 18 000 zł', 'Wszystkie kosztują tyle samo'], a: 0,
+    e: '100 × 57 = 5 700 zł < 100 × 62 = 6 200 zł < 18 000 zł. Ale nadgodziny kosztują też klimat (−4 pkt za każde 40 h), więc rachunek to nie cała decyzja.' },
+  { t: 'Od jakiego niedoboru godzin II zmiana (18 000 zł/mies.) staje się tańsza od kooperacji (62 zł/h)?',
+    o: ['Od ok. 291 h', 'Od ok. 144 h', 'Od ok. 316 h', 'Od ok. 180 h'], a: 0,
+    e: 'Próg opłacalności: 18 000 / 62 ≈ 290,3 h. Powyżej tej liczby godzin koszt stały II zmiany jest niższy niż kooperacja. (316 h to próg względem stawki nadgodzin, ale nadgodziny mają limit 144 h.)' }
+];
+
+var QUIZZES = {
+  e1: { nr: 1, tytul: 'Audyt', qr: 'test-qr.png', url: 'test.html', zakres: 'prognozowania, ANOVA i regresji, MRP oraz analizy odchyleń', pytania: PYTANIA_E1 },
+  e2: { nr: 2, tytul: 'Wąskie gardło', qr: 'test-qr-e2.png', url: 'test.html?e=2', zakres: 'OEE, balansowania linii, programowania liniowego (cena dualna), reguły Johnsona i CRP', pytania: PYTANIA_E2 }
+};
+
+if (!QUIZZES[QUIZ_ID]) QUIZ_ID = 'e1';
+var QUIZ = QUIZZES[QUIZ_ID], PYTANIA = QUIZ.pytania;
+var PAGE_URL = 'https://emgiees.github.io/edu-games-story/operations/' + QUIZ.url;
+document.title = 'KONTRAKT — test sprawdzający, Epizod ' + QUIZ.nr;
+document.getElementById('tag').textContent = 'test sprawdzający · Epizod ' + QUIZ.nr + ' „' + QUIZ.tytul + '”';
 var app = document.getElementById('app');
-var qs = new URLSearchParams(location.search);
 var db = null, dbNote = '';
 try {
   /* config.js deklaruje FIREBASE_CONFIG przez const, więc nie ma go w window */
@@ -131,14 +198,14 @@ function setIdx(v) { try { localStorage.setItem('kontrakt_test_index', v); } cat
 
 /* ---------- widok: kod QR na rzutnik ---------- */
 function viewQR() {
-  app.innerHTML = '<div class="panel qr"><h1>Test sprawdzający — Epizod 1</h1><p>Zeskanuj telefonem:</p>' +
-    '<img src="test-qr.png" alt="Kod QR do testu"><p class="url">' + PAGE_URL.replace('https://', '') + '</p>' +
+  app.innerHTML = '<div class="panel qr"><h1>Test sprawdzający — Epizod ' + QUIZ.nr + '</h1><p>Zeskanuj telefonem:</p>' +
+    '<img src="' + QUIZ.qr + '" alt="Kod QR do testu"><p class="url">' + PAGE_URL.replace('https://', '') + '</p>' +
     '<p class="small">Test nie jest oceniany. Podajesz tylko numer indeksu.</p></div>';
 }
 
 /* ---------- widok: wyniki dla prowadzącego ---------- */
 function viewResults() {
-  app.innerHTML = '<div class="panel"><h1>Wyniki testu</h1><p class="small">Na żywo. Każde podejście to osobny wiersz.</p><div id="res">Ładowanie…</div></div>';
+  app.innerHTML = '<div class="panel"><h1>Wyniki testu: Epizod ' + QUIZ.nr + '</h1><p class="small">Na żywo. Każde podejście to osobny wiersz.</p><div id="res">Ładowanie…</div></div>';
   if (!db) { document.getElementById('res').textContent = 'Brak połączenia z Firebase.'; return; }
   ref().on('value', function (s) {
     var v = s.val() || {}, rows = Object.keys(v).map(function (k) { return v[k]; }).sort(function (a, b) { return b.ts - a.ts; });
@@ -162,8 +229,8 @@ function viewResults() {
 
 /* ---------- widok: student ---------- */
 function viewStart(msg) {
-  app.innerHTML = '<div class="panel"><h1>Sprawdź się: Epizod 1</h1>' +
-    '<p>' + PYTANIA.length + ' pytań z prognozowania, ANOVA i regresji, MRP oraz analizy odchyleń. Test <b>nie jest oceniany</b>: po zakończeniu zobaczysz poprawne odpowiedzi z wyjaśnieniem. Możesz podejść kilka razy.</p>' +
+  app.innerHTML = '<div class="panel"><h1>Sprawdź się: Epizod ' + QUIZ.nr + '</h1>' +
+    '<p>' + PYTANIA.length + ' pytań z ' + QUIZ.zakres + '. Test <b>nie jest oceniany</b>: po zakończeniu zobaczysz poprawne odpowiedzi z wyjaśnieniem. Możesz podejść kilka razy.</p>' +
     '<p><label for="idx"><b>Numer indeksu</b></label><br><input id="idx" class="txt" inputmode="numeric" autocomplete="off" maxlength="8" value="' + esc(getIdx()) + '" placeholder="np. 123456"></p>' +
     (msg ? '<p class="err">' + esc(msg) + '</p>' : '') + '<button id="go">Zaczynam</button></div>';
   document.getElementById('go').onclick = function () {
@@ -199,7 +266,7 @@ function viewQuiz(idx) {
     var pct = Math.round(score / PYTANIA.length * 100);
     var sum = document.createElement('div'); sum.className = 'panel';
     sum.innerHTML = '<div class="score">' + score + ' / ' + PYTANIA.length + ' (' + pct + '%)</div><p>' +
-      (pct >= 80 ? 'Świetnie, materiał Epizodu 1 masz opanowany.' : pct >= 50 ? 'Nieźle. Przejrzyj wyjaśnienia przy błędnych odpowiedziach.' : 'Warto wrócić do debriefingu Epizodu 1 i wyjaśnień poniżej.') +
+      (pct >= 80 ? 'Świetnie, materiał Epizodu ' + QUIZ.nr + ' masz opanowany.' : pct >= 50 ? 'Nieźle. Przejrzyj wyjaśnienia przy błędnych odpowiedziach.' : 'Warto wrócić do debriefingu Epizodu ' + QUIZ.nr + ' i wyjaśnień poniżej.') +
       '</p><p class="small" id="save">Zapisywanie wyniku…</p>';
     var again = document.createElement('button'); again.className = 'b2'; again.textContent = 'Spróbuj jeszcze raz';
     again.onclick = function () { viewQuiz(idx); };
