@@ -13,23 +13,47 @@ Gra decyzyjna do przedmiotu „Analityka operacyjna i procesów pracy" (UG). Trz
 | `test_engines.js` | testy silnika (node) — 44 asercje względem wartości zweryfikowanych w Pythonie |
 | `PRZEWODNIK_PROWADZACEGO.md` | instrukcja prowadzenia zajęć |
 
-## Wdrożenie w 3 krokach
+## Wdrożenie
 
-1. Skopiuj cały folder `operations/` do repozytorium `edu-games-story` (obok folderów poprzednich gier).
-2. W `config.js` na górze pliku wklej do `FIREBASE_CONFIG` konfigurację **tego samego projektu Firebase**, którego używają Building Tomorrow i The Turnaround (gra zapisuje dane pod własnym kluczem `kontrakt/`, więc nie koliduje z poprzednimi grami).
-3. Commit i push. Gra będzie dostępna pod `https://emgiees.github.io/edu-games-story/operations/`.
-
-Dopóki w `FIREBASE_CONFIG` zostaje tekst `WKLEJ-...`, gra działa w trybie lokalnym: jedna drużyna, zapis w przeglądarce, konsola dostępna. To wystarcza do pełnego przetestowania wszystkich zadań bez żadnej konfiguracji.
-
-## Reguły bazy Firebase
-
-Jeżeli reguły Realtime Database są ustawione per gałąź, dodaj wpis analogiczny do poprzednich gier:
+1. Folder `operations/` jest już w repozytorium `edu-games-story`, a `config.js` ma wklejoną konfigurację projektu Firebase `my-edu-games` (tę samą co pozostałe gry). Gra zapisuje dane pod własną gałęzią `kontrakt/games/<KOD GRY>/`, więc nie koliduje z poprzednimi grami.
+2. **Reguły Firebase muszą zawierać gałąź `kontrakt`** — bez niej baza odrzuca każdy zapis („permission denied”), a gra zgłasza to komunikatem na stronie startowej. Pełne reguły (z zachowaniem `rooms`, `quiz_results` i `retraction-room`) wkleja się w konsoli Firebase → Realtime Database → Reguły → Opublikuj. Fragment dla tej gry:
 
 ```json
-"kontrakt": { ".read": true, ".write": true }
+"kontrakt": {
+  ".read": true,
+  "games": {
+    "$code": {
+      ".write": "!data.exists() || newData.exists()",
+      ".validate": "$code.matches(/^[A-Z0-9]{3,10}$/)",
+      "config": {
+        ".validate": "newData.hasChildren(['pin', 'created'])",
+        "pin": { ".validate": "newData.isString() && newData.val().length <= 10" },
+        "created": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      },
+      "episode": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 5" },
+      "events": { "$eventId": { ".validate": "$eventId.matches(/^[a-z0-9_-]{1,30}$/) && newData.isNumber()" } },
+      "teams": {
+        "$teamId": {
+          ".validate": "$teamId.matches(/^[a-z0-9-]{1,24}$/)",
+          "name": { ".validate": "newData.isString() && newData.val().length <= 60" }
+        }
+      },
+      "$other": { ".validate": false }
+    }
+  }
+}
 ```
 
-Uwaga jak przy poprzednich grach: publiczny odczyt i zapis gałęzi jest wygodny na zajęcia, ale nie trzymaj tam niczego wrażliwego; kod gry (5 liter) i PIN prowadzącego pełnią rolę miękkiej bariery.
+   Reguły blokują usunięcie całej gry i dopisywanie nieznanych pól; dane zespołów (zadania, KPI, symulacje) są zapisywane swobodnie.
+3. Gra jest dostępna pod `https://emgiees.github.io/edu-games-story/operations/` (GitHub Pages z gałęzi `main`).
+
+## Zapis i wczytywanie postępów (sale / grupy)
+
+- Każda grupa zajęciowa to osobna gra: prowadzący klika „Panel prowadzącego” → „Utwórz nową grę” i dostaje **KOD GRY** (5 liter) i **PIN**. Zapisz oba — np. jeden kod na grupę/salę.
+- Wszystko (zespoły, odpowiedzi, punkty, KPI, bieżący epizod) zapisuje się na bieżąco w Firebase pod tym kodem. Nie ma osobnego przycisku „zapisz”.
+- Na kolejnych zajęciach: zespół wpisuje **ten sam kod gry i tę samą nazwę zespołu** (wielkość liter i polskie znaki nie mają znaczenia) i wraca dokładnie tam, gdzie skończył. Prowadzący wchodzi do konsoli tym samym kodem i PIN-em.
+- Odświeżenie strony w trakcie zajęć nie gubi stanu (widok pamięta się w karcie przeglądarki).
 
 ## Test lokalny przed zajęciami
 
@@ -40,7 +64,7 @@ python3 -m http.server 8000
 # potem http://localhost:8000
 ```
 
-Na stronie startowej wybierz „Tryb testowy (lokalnie)": wchodzisz jako zespół testowy z epizodem 1 otwartym; konsolę otworzysz kodem `LOKAL` i PIN `0000`.
+Na stronie startowej wybierz „Tryb testowy (lokalnie)” (albo dopisz `?local=1` do adresu): gra przełącza się na zapis w przeglądarce, bez Firebase — testy nigdy nie trafiają do wspólnej bazy. Wchodzisz jako zespół testowy z epizodem 1 otwartym; konsolę otworzysz kodem `LOKAL` i PIN `0000`. Tryb lokalny obsługuje jedną kartę przeglądarki naraz.
 
 Testy matematyki (opcjonalnie, wymaga node):
 

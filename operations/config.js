@@ -3,20 +3,21 @@
    ============================================================
    1) FIREBASE: wklej poniżej konfigurację projektu Firebase
       (tę samą, której używają Building Tomorrow / The Turnaround).
-      Dopóki pola zawierają "WKLEJ-", gra działa w trybie lokalnym
+      (wklejona: projekt my-edu-games, ten sam co pozostałe gry).
+      Tryb lokalny bez Firebase: dopisz ?local=1 do adresu gry
       (jedna drużyna, zapis w przeglądarce) - wystarczy do testów.
    2) Wszystkie treści fabularne i tabele (w tym UMEWAP) są tutaj
       i można je edytować bez dotykania logiki gry.
    ============================================================ */
 
 const FIREBASE_CONFIG = {
-  apiKey: "WKLEJ-API-KEY",
-  authDomain: "WKLEJ.firebaseapp.com",
-  databaseURL: "https://WKLEJ-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "WKLEJ",
-  storageBucket: "WKLEJ.appspot.com",
-  messagingSenderId: "WKLEJ",
-  appId: "WKLEJ"
+  apiKey: "AIzaSyCSCc7QlbUv8f9Iae8eRZtLo9ER25feXkU",
+  authDomain: "my-edu-games.firebaseapp.com",
+  databaseURL: "https://my-edu-games-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "my-edu-games",
+  storageBucket: "my-edu-games.firebasestorage.app",
+  messagingSenderId: "535387410502",
+  appId: "1:535387410502:web:512e168834426cdaf93a47"
 };
 
 (typeof window !== 'undefined' ? window : globalThis).KONFIG = {

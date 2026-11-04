@@ -4,8 +4,26 @@ const { useState, useEffect, useMemo, useRef } = React;
 const K = KONFIG, E = KENG;
 
 /* ================= STORE ================= */
-const IS_LOCAL = !FIREBASE_CONFIG || String(FIREBASE_CONFIG.apiKey || '').indexOf('WKLEJ') === 0;
+const FORCE_LOCAL = /[?&]local=1(&|$)/.test(window.location.search);
+const IS_LOCAL = FORCE_LOCAL || !FIREBASE_CONFIG || String(FIREBASE_CONFIG.apiKey || '').indexOf('WKLEJ') === 0;
+const VIEW_KEY = 'kontrakt_view' + (IS_LOCAL ? '_local' : '');
+const dbErr = (e) => (String((e && (e.code || e.message)) || e).toLowerCase().indexOf('permission') >= 0
+  ? 'Baza Firebase odrzuciła zapis/odczyt (permission denied). Prowadzący: sprawdź, czy w regułach Firebase jest gałąź "kontrakt".'
+  : 'Błąd połączenia z bazą: ' + ((e && e.message) || e) + '. Sprawdź internet i spróbuj ponownie.');
 
+/* Firebase odrzuca undefined, NaN i klucze z . # $ / [ ] - czyścimy dane przed zapisem
+   (ten sam filtr w trybie lokalnym, żeby test lokalny zachowywał się jak zajęcia). */
+function clean(v) {
+  if (v === undefined) return null;
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  if (Array.isArray(v)) return v.map(clean);
+  if (v && typeof v === 'object') {
+    const o = {};
+    Object.keys(v).forEach((k) => { const c = clean(v[k]); if (c !== null) o[String(k).replace(/[.#$\/\[\]]/g, '_')] = c; });
+    return Object.keys(o).length ? o : null;
+  }
+  return v;
+}
 function makeLocalStore() {
   const KEY = 'kontrakt_local_v1';
   let doc = {};
@@ -29,8 +47,8 @@ function makeLocalStore() {
     local: true,
     get: (path) => Promise.resolve(getAt(path)),
     claim: (path) => { if (getAt(path)) return Promise.resolve(false); setAt(path, 'claim'); return Promise.resolve(true); },
-    set: (path, val) => { setAt(path, val); return Promise.resolve(); },
-    update: (path, obj) => { Object.keys(obj).forEach((k) => setAt(path + '/' + k, obj[k])); return Promise.resolve(); },
+    set: (path, val) => { setAt(path, clean(val)); return Promise.resolve(); },
+    update: (path, obj) => { Object.keys(obj).forEach((k) => setAt(path + '/' + k, clean(obj[k]))); return Promise.resolve(); },
     sub: (path, cb) => { const s = { path, cb }; subs.push(s); cb(getAt(path)); return () => { const i = subs.indexOf(s); if (i >= 0) subs.splice(i, 1); }; }
   };
 }
@@ -42,9 +60,9 @@ function makeFirebaseStore() {
     local: false,
     get: (p) => R(p).once('value').then((s) => s.val()),
     claim: (p) => R(p).transaction((cur) => (cur === null ? 'claim' : undefined)).then((r) => r.committed).catch(() => false),
-    set: (p, v) => R(p).set(v),
-    update: (p, o) => R(p).update(o),
-    sub: (p, cb) => { const ref = R(p); const h = ref.on('value', (s) => cb(s.val())); return () => ref.off('value', h); }
+    set: (p, v) => R(p).set(clean(v)),
+    update: (p, o) => { const c = {}; Object.keys(o).forEach((k) => { c[k] = clean(o[k]); }); return R(p).update(c); },
+    sub: (p, cb) => { const ref = R(p); const h = ref.on('value', (s) => cb(s.val()), (e) => console.error('Firebase', p, e)); return () => ref.off('value', h); }
   };
 }
 const STORE = IS_LOCAL ? makeLocalStore() : makeFirebaseStore();
@@ -69,9 +87,9 @@ function totalPoints(tasks) {
 /* ================= ROOT ================= */
 function App() {
   const [view, setView] = useState(() => {
-    try { return JSON.parse(sessionStorage.getItem('kontrakt_view') || 'null') || { v: 'landing' }; } catch (e) { return { v: 'landing' }; }
+    try { return JSON.parse(sessionStorage.getItem(VIEW_KEY) || 'null') || { v: 'landing' }; } catch (e) { return { v: 'landing' }; }
   });
-  const go = (v) => { setView(v); try { sessionStorage.setItem('kontrakt_view', JSON.stringify(v)); } catch (e) {} };
+  const go = (v) => { setView(v); try { sessionStorage.setItem(VIEW_KEY, JSON.stringify(v)); } catch (e) {} };
   if (view.v === 'team') return <TeamApp code={view.code} tid={view.tid} onExit={() => go({ v: 'landing' })} />;
   if (view.v === 'console') return <ConsoleApp code={view.code} onExit={() => go({ v: 'landing' })} onProjector={() => go({ v: 'projector', code: view.code, back: view })} />;
   if (view.v === 'projector') return <ProjectorView code={view.code} onBack={() => go(view.back || { v: 'landing' })} />;
@@ -84,13 +102,20 @@ function Landing({ go }) {
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [err, setErr] = useState('');
-  const join = async () => {
-    setErr('');
-    const c = code.trim().toUpperCase();
+  const [busy, setBusy] = useState(false);
+  const guard = (fn) => async () => {
+    if (busy) return;
+    setErr(''); setBusy(true);
+    try { await fn(); } catch (e) { console.error(e); setErr(dbErr(e)); } finally { setBusy(false); }
+  };
+  const cleanCode = () => code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const join = guard(async () => {
+    const c = cleanCode();
+    if (!c) { setErr('Podaj kod gry.'); return; }
+    if (!name.trim()) { setErr('Podaj nazwę zespołu.'); return; }
     const cfg = await STORE.get('games/' + c + '/config');
     if (!cfg) { setErr('Nie ma gry o kodzie ' + c + '. Sprawdź kod u prowadzącego.'); return; }
     const tid = slug(name);
-    if (!name.trim()) { setErr('Podaj nazwę zespołu.'); return; }
     const exist = await STORE.get('games/' + c + '/teams/' + tid + '/name');
     if (!exist) {
       await STORE.set('games/' + c + '/teams/' + tid, {
@@ -98,24 +123,29 @@ function Landing({ go }) {
       });
     }
     go({ v: 'team', code: c, tid });
-  };
-  const console_ = async () => {
-    setErr('');
-    const c = code.trim().toUpperCase();
+  });
+  const console_ = guard(async () => {
+    const c = cleanCode();
+    if (!c) { setErr('Podaj kod gry.'); return; }
     const cfg = await STORE.get('games/' + c + '/config');
     if (!cfg) { setErr('Nie ma gry o kodzie ' + c + '.'); return; }
     if (String(cfg.pin) !== pin.trim()) { setErr('Błędny PIN.'); return; }
     go({ v: 'console', code: c });
-  };
-  const create = async () => {
-    const c = Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPRSTUWXYZ'[Math.floor(Math.random() * 22)]).join('');
+  });
+  const create = guard(async () => {
+    let c = '';
+    for (let i = 0; i < 5; i++) {
+      c = Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPRSTUWXYZ'[Math.floor(Math.random() * 22)]).join('');
+      if (!(await STORE.get('games/' + c + '/config'))) break;
+    }
     const p = String(1000 + Math.floor(Math.random() * 9000));
     await STORE.set('games/' + c + '/config', { pin: p, created: Date.now() });
     await STORE.set('games/' + c + '/episode', 0);
     alert('Utworzono grę.\nKOD GRY: ' + c + '\nPIN prowadzącego: ' + p + '\nZapisz oba — otwieram konsolę.');
     go({ v: 'console', code: c });
-  };
+  });
   const localTest = async () => {
+    if (!IS_LOCAL) { window.location.search = '?local=1'; return; } // test nigdy nie zapisuje do wspólnej bazy
     const c = 'LOKAL';
     const cfg = await STORE.get('games/' + c + '/config');
     if (!cfg) { await STORE.set('games/' + c + '/config', { pin: '0000', created: Date.now() }); await STORE.set('games/' + c + '/episode', 1); }
@@ -130,7 +160,8 @@ function Landing({ go }) {
       <div className="sub">FABRYKA MEBLI FALA × NORDIKA · {K.meta.podtytul}</div>
       {IS_LOCAL && <div className="panel bad" style={{ textAlign: 'left' }}>
         <b>Tryb lokalny (bez Firebase).</b> W pliku <span className="mono">config.js</span> nie wklejono jeszcze konfiguracji Firebase.
-        Gra działa na tym komputerze (jedna drużyna + konsola), zapis w przeglądarce. Do zajęć z wieloma zespołami wklej konfigurację z poprzednich gier.
+        Gra działa na tym komputerze (jedna drużyna + konsola), zapis w przeglądarce.
+        {FORCE_LOCAL && <> <a href={window.location.pathname}>Wróć do trybu z Firebase (zajęcia).</a></>}
       </div>}
       {!mode && <div style={{ display: 'grid', gap: 12 }}>
         <button onClick={() => setMode('team')}>Dołącz jako zespół</button>
@@ -140,15 +171,16 @@ function Landing({ go }) {
       {mode === 'team' && <div className="panel" style={{ textAlign: 'left' }}>
         <h3>Dołącz do gry</h3>
         <p><input placeholder="KOD GRY" value={code} onChange={(e) => setCode(e.target.value)} style={{ textTransform: 'uppercase' }} /></p>
-        <p><input placeholder="Nazwa zespołu" value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%' }} /></p>
+        <p><input placeholder="Nazwa zespołu" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%' }} /></p>
+        <p className="small">Wracacie na kolejne zajęcia? Wpiszcie ten sam kod gry i <b>tę samą nazwę zespołu</b> — postępy wczytają się automatycznie.</p>
         {err && <p style={{ color: 'var(--bad)' }}>{err}</p>}
-        <button onClick={join}>Wejdź na halę</button> <button className="b2" onClick={() => setMode(null)}>Wróć</button>
+        <button onClick={join} disabled={busy}>Wejdź na halę</button> <button className="b2" onClick={() => setMode(null)}>Wróć</button>
       </div>}
       {mode === 'console' && <div className="panel" style={{ textAlign: 'left' }}>
         <h3>Panel prowadzącego</h3>
         <p><input placeholder="KOD GRY" value={code} onChange={(e) => setCode(e.target.value)} style={{ textTransform: 'uppercase' }} /> <input placeholder="PIN" value={pin} onChange={(e) => setPin(e.target.value)} style={{ width: 90 }} /></p>
         {err && <p style={{ color: 'var(--bad)' }}>{err}</p>}
-        <button onClick={console_}>Otwórz konsolę</button> <button className="b2" onClick={create}>Utwórz nową grę</button> <button className="b2" onClick={() => setMode(null)}>Wróć</button>
+        <button onClick={console_} disabled={busy}>Otwórz konsolę</button> <button className="b2" onClick={create} disabled={busy}>Utwórz nową grę</button> <button className="b2" onClick={() => setMode(null)}>Wróć</button>
       </div>}
       <p className="small" style={{ marginTop: 30 }}>Uniwersytet Gdański · Analityka operacyjna i procesów pracy · gra nr 3 serii edu-games-story</p>
     </div>
@@ -212,7 +244,8 @@ function TeamApp({ code, tid, onExit }) {
     });
   }, [events, team && team.sim]);
 
-  if (!team) return <div className="wrap"><p>Ładowanie zespołu…</p></div>;
+  if (team === null) return <div className="wrap landing"><div className="panel bad"><p>Nie znaleziono zespołu w grze <b className="mono">{code}</b>.</p><button onClick={onExit}>Wróć do strony startowej</button></div></div>;
+  if (!team) return <div className="wrap"><p>Ładowanie zespołu…</p><button className="b2 bsm" onClick={onExit}>Wróć</button></div>;
   const ep = K.epizody.find((e) => e.nr === episode);
 
   return (
@@ -390,7 +423,9 @@ function SubmitBar({ taskId, base, tid, task, compute, label }) {
       answers: r.answers, raw: r.score, score: Math.max(final, (task && task.score) || 0),
       attempts: att, locked: att >= 2 || r.score >= 100, ts: Date.now(), feedback: r.feedback
     }, r.extras || {});
-    await STORE.set(base + '/teams/' + tid + '/tasks/' + taskId, rec);
+    try {
+      await STORE.set(base + '/teams/' + tid + '/tasks/' + taskId, rec);
+    } catch (e) { console.error(e); setFb({ err: 'Nie udało się zapisać odpowiedzi. ' + dbErr(e) }); return; }
     setFb({ feedback: r.feedback, score: final, raw: r.score });
   };
   const shown = fb || (task && task.feedback ? { feedback: task.feedback, score: task.score, raw: task.raw } : null);
@@ -1417,7 +1452,8 @@ function TaskE45({ base, tid, task }) {
 /* ------- FINAŁ ------- */
 function Finale({ base, tid, team }) {
   const sim = team.sim && team.sim.e4;
-  if (!sim || !sim.done) return <div className="panel"><p>Trwa symulacja grudnia…</p></div>;
+  // sim.done === 'claim' oznacza, że symulacja właśnie się liczy (flagi jeszcze nie zapisane)
+  if (!sim || sim.done !== true || !sim.flags) return <div className="panel"><p>Trwa symulacja grudnia…</p></div>;
   const strajk = sim.flags.strajk, otif = sim.flags.otifFin;
   const tier = strajk === 0 && otif >= 92 ? 'top' : (strajk === 2 || otif < 85) ? 'low' : 'mid';
   const ep = K.epilogi.find((e) => e.prog === tier);
@@ -1426,12 +1462,12 @@ function Finale({ base, tid, team }) {
     <div>
       <div className="panel amber">
         <h1>Grudzień: dostawa</h1>
-        {sim.lines.map((l, i) => <p key={i} className="fb">{l}</p>)}
+        {(sim.lines || []).map((l, i) => <p key={i} className="fb">{l}</p>)}
       </div>
-      <div className="panel ok">
+      {ep && <div className="panel ok">
         <h2>Epilog: {ep.tytul}</h2>
         <p>{ep.tekst}</p>
-      </div>
+      </div>}
       <Leaderboard base={base} meId={tid} />
       <div className="panel">
         <h3>Wasze punkty merytoryczne (do oceny)</h3>
