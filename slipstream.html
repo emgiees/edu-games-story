@@ -1647,6 +1647,7 @@ function TeamApp({ world, tid, adapter, demoBar }) {
       <Peloton world={world} meTid={tid} />
       {f.receivership && <div className="banner warn">In receivership since Q{f.receivership.sinceQ}. The bank caps marketing at €60k per segment, freezes wages, blocks new lines and sweeps half of spare cash. Restore equity above {fmt.eur0(E.T.receiverExitEquity * E.T.startCash)} for two straight quarters to exit.</div>}
       {flash && <div className="banner ok">{flash}</div>}
+      {!world.finished && <EventsBanner world={world} />}
       <nav className="tabs" role="tablist">
         {tabs.map(([k, label]) => <button key={k} role="tab" aria-selected={tab === k} className={'tab' + (tab === k ? ' on' : '')} onClick={() => setTab(k)}>{label}</button>)}
       </nav>
@@ -1686,6 +1687,20 @@ function MarketTab({ world, tid }) {
         ))}
         <p className="mini foot">Public information: list prices and realised shares. Everything else is somebody's secret — or a research report away.</p>
       </Section>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------ EVENTS BANNER */
+// Shows live and announced market events with their headlines, so everyone
+// sees an event as soon as the instructor triggers it (display only).
+function EventsBanner({ world, compact }) {
+  const live = world.activeEvents || []; const next = world.pendingEvents || [];
+  if (!live.length && !next.length) return null;
+  return (
+    <div className="banner info">
+      {live.map((e, i) => <div key={'l' + i}>📣 <b>{e.name}</b>: {e.headline} <span className="mini">({e.remaining > 50 ? 'permanent' : e.remaining + (e.remaining === 1 ? ' quarter' : ' quarters') + ' incl. this one'})</span></div>)}
+      {next.map((e, i) => <div key={'n' + i}>🗓 Announced for Q{e.startQ}: <b>{e.name}</b>{compact ? '' : ': ' + e.headline}</div>)}
     </div>
   );
 }
@@ -2270,7 +2285,13 @@ function FirmsTab({ world }) {
 
 function EventsTab({ world, patchWorld }) {
   const [custom, setCustom] = useState({ name: '', headline: '', dur: 2, dCity: 0, dBudget: 0, dSport: 0, dCargo: 0, kitCost: 0, supplierCap: 0, rates: 0, wage: 0 });
-  const schedule = (ev, when) => patchWorld(w => {
+  const [note, setNote] = useState(null);
+  const schedule = (ev, when) => patchWorldRaw(ev, when)
+    .then(() => setNote({ ok: true, text: when === 'now'
+      ? '✓ ' + ev.name + ' is live in ' + qLabel(world.q) + '. Teams see the headline now; its effects apply when you close this round.'
+      : '✓ ' + ev.name + ' announced for Q' + (world.q + 1) + '. Teams see the announcement now.' }))
+    .catch(e => setNote({ ok: false, text: 'Could not save the event: ' + (e && e.message ? e.message : e) + '. Check the connection and try again.' }));
+  const patchWorldRaw = (ev, when) => patchWorld(w => {
     w.pendingEvents = w.pendingEvents || []; w.activeEvents = w.activeEvents || [];
     const base = { id: ev.id || 'custom' + Date.now(), name: ev.name, headline: ev.headline, effects: ev.effects, dur: ev.dur, remaining: ev.dur };
     if (when === 'now') w.activeEvents.push({ ...base, justStarted: true });
@@ -2289,6 +2310,8 @@ function EventsTab({ world, patchWorld }) {
   return (
     <div className="grid2">
       <Section title="Event library" right={<span className="mini">effects apply while the event runs</span>}>
+        {note && <div className={'banner ' + (note.ok ? 'ok' : 'bad')}>{note.text}</div>}
+        <EventsBanner world={world} compact />
         {E.EVENT_LIBRARY.map(ev => (
           <div key={ev.id} className="offer">
             <b>{ev.name}</b><em className="mini grow">"{ev.headline}" · {ev.dur}q</em>
@@ -2298,7 +2321,6 @@ function EventsTab({ world, patchWorld }) {
         ))}
         <div className="pendinglist">
           {(world.pendingEvents || []).map((e, i) => <p key={'p' + i} className="mini">Scheduled: <b>{e.name}</b> from Q{e.startQ} <button className="btn tiny" onClick={() => patchWorld(w => { w.pendingEvents.splice(i, 1); })}>cancel</button></p>)}
-          {(world.activeEvents || []).map((e, i) => <p key={'a' + i} className="mini">Live: <b>{e.name}</b> — {e.remaining}q to run</p>)}
         </div>
       </Section>
       <Section title="Build your own">
@@ -2331,6 +2353,7 @@ function PresentTab({ world }) {
   return (
     <div className="present">
       <h2 className="present-title">{world.finished ? 'FINAL STANDINGS' : r ? qLabel(lastQ) + ' — RESULTS' : 'SEASON START'}</h2>
+      {!world.finished && <EventsBanner world={world} />}
       <div className="present-grid">
         <div>
           <h3 className="present-sub">General classification</h3>
