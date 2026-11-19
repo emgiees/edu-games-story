@@ -71,6 +71,12 @@ button{font-family:inherit;cursor:pointer}
 .banner{border-radius:var(--r);padding:10px 14px;margin:10px 0;font-weight:500}
 .banner.warn{background:var(--warn-soft);color:#8C2B0E;border:1px solid #F0BFA9}
 .banner.ok{background:var(--ok-soft);color:#0D5C3D;border:1px solid #B4E0CC}
+.banner.bad{background:#FDE7E7;color:#8A1414;border:2px solid #E59A9A;font-weight:600}
+.banner.info{background:#EEF3FF;color:#1E3A8A;border:1px solid #C7D5FB}
+.checks{margin:10px 0}
+.checks .banner{margin:6px 0}
+.segwarn{display:block;color:#B42318;font-weight:600;margin-top:4px}
+.dirty{color:#B42318;font-weight:600}
 
 /* ============================================================== TABS */
 .tabs{display:flex;gap:4px;margin-top:12px;border-bottom:2px solid var(--ink);overflow-x:auto}
@@ -1566,6 +1572,7 @@ function RolePicker({ world, onPick }) {
 function useDraft(world, tid, adapter) {
   const [draft, setDraft] = useState(null);
   const [submittedAt, setSubmittedAt] = useState(null);
+  const [filed, setFiled] = useState(null);
   const qRef = useRef(null);
   useEffect(() => {
     if (!world || qRef.current === world.q) return;
@@ -1573,9 +1580,10 @@ function useDraft(world, tid, adapter) {
     setSubmittedAt(null);
     const base = E.defaultDecisions(world, tid);
     const my = adapter.loadMy ? adapter.loadMy(tid, world.q) : Promise.resolve(null);
-    my.then(prev => { if (prev) { setDraft(deepMerge(base, prev)); setSubmittedAt('earlier'); } else setDraft(base); });
+    my.then(prev => { if (prev) { const m = deepMerge(base, prev); setDraft(m); setFiled(JSON.stringify(m)); setSubmittedAt('earlier'); } else { setDraft(base); setFiled(null); } });
   }, [world && world.q, tid]);
-  return [draft, setDraft, submittedAt, setSubmittedAt];
+  const dirty = !!(submittedAt && filed && draft && JSON.stringify(draft) !== filed);
+  return [draft, setDraft, submittedAt, setSubmittedAt, dirty, setFiled];
 }
 function deepMerge(a, b) { const out = JSON.parse(JSON.stringify(a)); (function m(x, y) { Object.keys(y || {}).forEach(k => { if (y[k] && typeof y[k] === 'object' && !Array.isArray(y[k]) && x[k]) m(x[k], y[k]); else x[k] = y[k]; }); })(out, b); return out; }
 
@@ -1592,7 +1600,12 @@ function unitEconomics(world, f, seg, tier, price) {
 function TeamApp({ world, tid, adapter, demoBar }) {
   const f = world.teams[tid];
   const [tab, setTab] = useState('market');
-  const [draft, setDraft, submittedAt, setSubmittedAt] = useDraft(world, tid, adapter);
+  const [draft, setDraft, submittedAt, setSubmittedAt, dirty, setFiled] = useDraft(world, tid, adapter);
+  useEffect(() => {
+    if (!dirty) return;
+    const h = e => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', h); return () => window.removeEventListener('beforeunload', h);
+  }, [dirty]);
   const [flash, setFlash] = useState('');
   const prevQ = useRef(world.q);
   useEffect(() => { if (world.q !== prevQ.current) { prevQ.current = world.q; setFlash('Quarter resolved — check the wire and your reports'); setTab('market'); const t = setTimeout(() => setFlash(''), 6000); return () => clearTimeout(t); } }, [world.q]);
@@ -1609,6 +1622,7 @@ function TeamApp({ world, tid, adapter, demoBar }) {
 
   const submit = async () => {
     await adapter.submitDecisions(tid, world.q, draft);
+    setFiled(JSON.stringify(draft));
     setSubmittedAt('now');
   };
 
@@ -1638,7 +1652,7 @@ function TeamApp({ world, tid, adapter, demoBar }) {
       </nav>
       <main className="content">
         {tab === 'market' && <MarketTab world={world} tid={tid} />}
-        {tab === 'decide' && draft && <DecideTab world={world} tid={tid} draft={draft} setDraft={setDraft} submit={submit} submittedAt={submittedAt} />}
+        {tab === 'decide' && draft && <DecideTab world={world} tid={tid} draft={draft} setDraft={setDraft} submit={submit} submittedAt={submittedAt} dirty={dirty} />}
         {tab === 'trade' && <TradeTab world={world} tid={tid} adapter={adapter} />}
         {tab === 'reports' && <ReportsTab world={world} tid={tid} />}
         {tab === 'research' && <ResearchTab world={world} tid={tid} />}
@@ -1676,9 +1690,68 @@ function MarketTab({ world, tid }) {
   );
 }
 
+/* ------------------------------------------------------- PLAN CHECKS */
+// Display-only checks that mirror the engine's rules, so teams see problems
+// before they file. They never change decisions or the simulation.
+function nextModules(world) {
+  const nq = world.q + 1; const out = [];
+  (world.sessionPlan || []).forEach(sp => { if (sp.fromQ === nq) (sp.modules || []).forEach(m => { if (!world.modules[m]) out.push(m); }); });
+  return out;
+}
+function kitPicture(world, f, draft) {
+  // kits usable THIS quarter = stock + spot orders already due + contract deliveries (all arrive before production)
+  const due = t => f.kitOrders.filter(o => o.tier === t && o.arrivesQ <= world.q).reduce((a, o) => a + o.qty, 0);
+  const contractNow = t => f.contracts.filter(c => c.tier === t && c.remaining > 0).reduce((a, c) => a + c.qtyPerQ, 0);
+  const contractNext = t => f.contracts.filter(c => c.tier === t && c.remaining > 1).reduce((a, c) => a + c.qtyPerQ, 0)
+    + (draft.newContract && draft.newContract.qtyPerQ > 0 && (draft.newContract.tier || 2) === t ? draft.newContract.qtyPerQ : 0);
+  const out = {};
+  [1, 2, 3].forEach(t => {
+    const need = E.SEGMENTS.reduce((a, s) => a + (draft.segs[s].active && draft.segs[s].kitTier === t ? Math.max(0, draft.production[s] || 0) : 0), 0);
+    const now = f.kits[t] + due(t) + contractNow(t);
+    const spot = world.modules.supply ? (draft.buyKits.spot[t] || 0) : 0;
+    out[t] = { need, now, next: Math.max(0, now - need) + spot + contractNext(t) };
+  });
+  return out;
+}
+function planChecks(world, f, draft) {
+  const items = []; // { level: 'bad' | 'warn' | 'info', text }
+  if (!draft || world.finished) return items;
+  const kp = kitPicture(world, f, draft);
+  const segsUsing = t => E.SEGMENTS.filter(s => draft.segs[s].active && draft.segs[s].kitTier === t && (draft.production[s] || 0) > 0).map(s => E.SEG_META[s].label).join(' + ');
+  [1, 2, 3].forEach(t => {
+    const k = kp[t];
+    if (k.need > k.now) {
+      const others = [1, 2, 3].filter(x => x !== t && kp[x].now - kp[x].need > 0).map(x => fmt.num(kp[x].now - kp[x].need) + ' unused T' + x + ' kits');
+      items.push({ level: 'bad', text: (k.now === 0 ? 'You have NO T' + t + ' kits' : 'You only have ' + fmt.num(k.now) + ' T' + t + ' kits') + ' but plan to build ' + fmt.num(k.need) + ' bikes with T' + t + ' (' + segsUsing(t) + '). Production will be cut to ' + fmt.num(k.now) + '. Kits bought now only arrive next quarter.' + (others.length ? ' You do have ' + others.join(' and ') + ' — switch the kit back to use them this quarter.' : '') });
+    }
+    if (world.modules.supply && k.need > 0 && world.q < world.quartersTotal && k.next < k.need * 0.8) {
+      items.push({ level: 'warn', text: 'Next quarter you will have only about ' + fmt.num(k.next) + ' T' + t + ' kits. To build a similar amount (' + fmt.num(k.need) + ') next quarter, order about ' + fmt.num(Math.max(0, Math.ceil((k.need - k.next) / 50) * 50)) + ' more T' + t + ' kits now in Components — they take one quarter to arrive.' });
+    }
+  });
+  E.SEGMENTS.forEach(s => {
+    const sd = draft.segs[s]; if (!sd.active) return;
+    const ref = E.SEG_META[s].refPrice; const lo = Math.round(ref * 0.45), hi = Math.round(ref * 2.2);
+    if (sd.price < lo || sd.price > hi) items.push({ level: 'warn', text: E.SEG_META[s].label + ': price €' + fmt.num(sd.price) + ' is outside the allowed range €' + fmt.num(lo) + '–€' + fmt.num(hi) + ' and will be treated as €' + fmt.num(sd.price < lo ? lo : hi) + '.' });
+    if (!(draft.production[s] > 0) && f.fg[s].units === 0) items.push({ level: 'info', text: E.SEG_META[s].label + ' is "In market" but you build 0 and have no stock, so you will sell nothing there.' });
+  });
+  const nm = nextModules(world);
+  if (nm.includes('supply')) items.push({ level: 'info', text: 'Heads-up: from next quarter the game stops buying kits for you. Each quarter you must order next quarter\'s kits yourself in Components, or production stops.' });
+  if (nm.includes('hr')) items.push({ level: 'info', text: 'Heads-up: from next quarter the game stops hiring for you. Check workforce vs. your plan every quarter in People.' });
+  if (world.modules.hr) {
+    if ((draft.hr.hireWorkers || 0) > world.labourPool) items.push({ level: 'warn', text: 'You want to hire ' + draft.hr.hireWorkers + ' workers but only about ' + fmt.num(world.labourPool) + ' are looking for work — and other firms compete for them.' });
+    if ((draft.hr.wage || 0) < world.marketWage) items.push({ level: 'info', text: 'Your wage is below the market wage (€' + fmt.num(world.marketWage) + '): morale drops and more workers quit.' });
+  }
+  return items;
+}
+function teamPlanIssues(world, tid, raw) {
+  try { const d = deepMerge(E.defaultDecisions(world, tid), raw || {}); return planChecks(world, world.teams[tid], d).filter(i => i.level === 'bad').length; } catch (e) { return 0; }
+}
+
 /* ----------------------------------------------------------- DECISIONS */
-function DecideTab({ world, tid, draft, setDraft, submit, submittedAt }) {
+function DecideTab({ world, tid, draft, setDraft, submit, submittedAt, dirty }) {
   const f = world.teams[tid];
+  const checks = planChecks(world, f, draft);
+  const kp = kitPicture(world, f, draft);
   const mods = E.eventMods(world);
   const set = (path, v) => { const d = JSON.parse(JSON.stringify(draft)); let o = d; const ks = path.split('.'); for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]]; o[ks[ks.length - 1]] = v; setDraft(d); };
 
@@ -1728,7 +1801,8 @@ function DecideTab({ world, tid, draft, setDraft, submit, submittedAt }) {
                   <div className="ue">
                     <span>Unit cost ≈ €{fmt.num(ue.cost)} <em>(kit {fmt.num(ue.kitC)} + labour {fmt.num(ue.labour)} + parts {fmt.num(ue.parts + 40)})</em></span>
                     <span className={ue.margin < 0 ? 'neg' : 'pos'}>Margin ≈ €{fmt.num(ue.margin)} ({Math.round(ue.marginPct * 100)}%)</span>
-                    <span className="mini">In stock: {fmt.num(f.fg[s].units)} finished · T{sd.kitTier} kits: {fmt.num(have)}{kitNeed[sd.kitTier] > have ? ' — short ' + fmt.num(kitNeed[sd.kitTier] - have) : ''}</span>
+                    <span className="mini">In stock: {fmt.num(f.fg[s].units)} finished · T{sd.kitTier} kits usable this quarter: {fmt.num(kp[sd.kitTier].now)}</span>
+                    {kp[sd.kitTier].need > kp[sd.kitTier].now && (draft.production[s] || 0) > 0 && <span className="segwarn">⚠ Not enough T{sd.kitTier} kits — production will be cut{kp[sd.kitTier].now === 0 ? ' to zero' : ''}</span>}
                     {world.modules.marketing && <label className="lbl">Marketing € <Num value={draft.marketing[s]} onChange={v => set('marketing.' + s, v)} step={10000} width={110} /></label>}
                   </div>
                 </div>}
@@ -1799,8 +1873,11 @@ function DecideTab({ world, tid, draft, setDraft, submit, submittedAt }) {
         </label>}
       </Section>}
 
+      {checks.length > 0 && <div className="checks" aria-live="polite">
+        {checks.map((c, i) => <div key={i} className={'banner ' + c.level}>{c.level === 'bad' ? '⛔ ' : c.level === 'warn' ? '⚠ ' : 'ℹ '}{c.text}</div>)}
+      </div>}
       <div className="submitbar">
-        <div>{submittedAt ? <span className="ok">✓ Decisions filed{submittedAt === 'now' ? '' : ' earlier'} — you can revise until the round closes.</span> : <span>Nothing filed yet for {qLabel(world.q)}.</span>}</div>
+        <div>{dirty ? <span className="dirty">⚠ You changed things since filing — click Refile or the old decisions count.</span> : submittedAt ? <span className="ok">✓ Decisions filed{submittedAt === 'now' ? '' : ' earlier'} — you can revise until the round closes.</span> : <span>Nothing filed yet for {qLabel(world.q)}.</span>}</div>
         <button className="btn primary big" disabled={!world.roundOpen || world.finished} onClick={submit}>{submittedAt ? 'Refile decisions' : 'File decisions for ' + qLabel(world.q)}</button>
       </div>
     </div>
@@ -2120,12 +2197,12 @@ function ControlTab({ world, subs, resolve, busy, patchWorld, adapter }) {
   return (
     <div className="grid2">
       <Section title="Round control">
-        <p>Deciding <b>{qLabel(world.q)}</b> of {world.quartersTotal}. Teams file decisions; when the room is ready, resolve the market. Firms with nothing filed repeat their standing orders (autopilot).</p>
+        <p>{world.finished ? <>Season complete after <b>{world.quartersTotal}</b> quarters.</> : <>Deciding <b>{qLabel(world.q)}</b> of {world.quartersTotal}. Teams file decisions; when the room is ready, resolve the market. Firms with nothing filed repeat their standing orders (autopilot). "filed ⚠" means a team's plan can't be built as filed (usually missing kits).</>}</p>
         <table className="fin"><tbody>
           {world.order.map(id => {
             const t = world.teams[id];
             return <tr key={id}><td><Chip color={t.color}>{t.name}</Chip></td>
-              <td className="r">{t.isBot ? <span className="mini">bot · {t.botType}</span> : subs[id] ? <span className="pos">filed ✓</span> : <span className="mini">nothing yet</span>}</td></tr>;
+              <td className="r">{t.isBot ? <span className="mini">bot · {t.botType}</span> : subs[id] ? (() => { const n = teamPlanIssues(world, id, subs[id]); return n ? <span className="neg" title="This team's filed plan cannot be built as filed (e.g. missing kits). They see the details on their Decisions tab.">filed ⚠ {n} problem{n > 1 ? 's' : ''}</span> : <span className="pos">filed ✓</span>; })() : <span className="mini">nothing yet</span>}</td></tr>;
           })}
         </tbody></table>
         <div className="submitbar inline">
